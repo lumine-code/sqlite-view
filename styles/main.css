@@ -275,7 +275,16 @@
 }
 
 .sqlite-view-query-actions {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+.sqlite-view-query-error {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-color-error);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sqlite-view-query-editor {

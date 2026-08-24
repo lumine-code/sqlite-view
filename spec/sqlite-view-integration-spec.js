@@ -297,6 +297,39 @@ describe("SQLite View integration", () => {
     expect(item.component.history).toEqual([sql]);
   });
 
+  it("shows query errors beside History only inside the Query tab", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    const component = item.component;
+    const tableStatus = component.status;
+    component.refs.queryEditor.editor.setText("SELECT * FROM missing_table");
+    component.executeQuery();
+    await conditionPromise(
+      () =>
+        !component.queryRunning &&
+        component.queryError &&
+        component.element.querySelector(".sqlite-view-query-error"),
+      "the inline query error",
+    );
+
+    const actions = component.element.querySelector(".sqlite-view-query-actions");
+    const history = actions.querySelector("select");
+    const queryError = actions.querySelector(".sqlite-view-query-error");
+    expect(history.nextElementSibling).toBe(queryError);
+    expect(queryError.textContent).toContain("SQLITE_ERROR");
+    expect(queryError.textContent).toContain("no such table");
+    expect(component.error).toBeNull();
+    expect(component.status).toBe(tableStatus);
+    expect(component.element.querySelector(".sqlite-view-error")).toBeNull();
+
+    component.mode = "data";
+    await component.patch();
+    expect(component.refs.queryPanel.classList.contains("is-hidden")).toBe(true);
+    expect(component.element.querySelector(".sqlite-view-status").textContent).not.toContain(
+      "no such table",
+    );
+  });
+
   it("restores a missing database and reopens it when the file reappears", async () => {
     const missingPath = path.join(files.directory, "restored.sqlite");
     const item = main.deserialize({

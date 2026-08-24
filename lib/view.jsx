@@ -125,6 +125,7 @@ class SQLiteViewComponent {
     this.collapsedGroups = new Set();
     this.queryColumns = [];
     this.queryRows = [];
+    this.queryError = null;
     this.status = "";
     this.loading = false;
     this.loadingVisible = false;
@@ -764,8 +765,11 @@ class SQLiteViewComponent {
       this.patch();
       return;
     }
+    const statusBeforeQuery = this.status;
     this.cancelQuery();
     this.error = null;
+    this.queryError = null;
+    this.statusBeforeQuery = statusBeforeQuery;
     if (this.history[0] !== sql) this.history = [sql, ...this.history].slice(0, HISTORY_LIMIT);
     this.queryColumns = [];
     this.queryRows = [];
@@ -781,6 +785,7 @@ class SQLiteViewComponent {
   handleQueryEvent(event) {
     if (!event || this.destroyed) return;
     if (event.type === "start") {
+      this.queryError = null;
       this.queryColumns = event.columns || [];
     } else if (event.type === "chunk") {
       this.queryRows.push(...(event.rows || []));
@@ -790,10 +795,21 @@ class SQLiteViewComponent {
       this.queryStale = Boolean(event.databaseChangedDuringRun);
       const suffix = event.truncated ? ` · truncated by ${event.truncated}` : "";
       this.status = `${event.rows ?? this.queryRows.length} rows · ${event.elapsedMs ?? Date.now() - this.queryStartedAt} ms${suffix}${this.queryStale ? " · database changed" : ""}`;
+      this.statusBeforeQuery = null;
     } else if (event.type === "error") {
       this.queryRunning = false;
-      if (event.error?.code === "CANCELLED") this.status = "Query cancelled.";
-      else this.setError(event.error || event);
+      if (event.error?.code === "CANCELLED") {
+        this.queryError = null;
+        this.status = "Query cancelled.";
+      } else {
+        const error = event.error || event;
+        this.queryError = {
+          code: error?.code || "SQLITE_ERROR",
+          message: error?.message || String(error),
+        };
+        this.status = this.statusBeforeQuery || "";
+      }
+      this.statusBeforeQuery = null;
     }
     this.dataKey += 1;
     this.patch();
@@ -805,6 +821,10 @@ class SQLiteViewComponent {
     if (!queryCancelled && !countCancelled) return;
     this.queryRunning = false;
     this.counting = false;
+    if (queryCancelled) {
+      this.queryError = null;
+      this.statusBeforeQuery = null;
+    }
     this.status = "Operation cancelled.";
     this.patch();
   }
@@ -1410,6 +1430,15 @@ class SQLiteViewComponent {
               <option value={sql}>{oneLine(sql)}</option>
             ))}
           </select>
+          {this.queryError ? (
+            <span
+              className="sqlite-view-query-error"
+              role="alert"
+              title={`${this.queryError.code}: ${this.queryError.message}`}
+            >
+              <strong>{this.queryError.code}</strong> {this.queryError.message}
+            </span>
+          ) : null}
           {this.queryStale ? <span className="text-warning">Result is stale</span> : null}
         </div>
         <QueryEditor
