@@ -17,7 +17,7 @@ function fixture() {
   const wideColumns = Array.from({ length: 99 }, (_, index) => `c${index + 1} INTEGER`).join(", ");
   database.exec(
     `CREATE TABLE records(id INTEGER PRIMARY KEY, name TEXT);
-     INSERT INTO records VALUES(1, 'one'), (2, 'two');
+     INSERT INTO records VALUES(1, 'displacements_increment'), (2, 'two');
      WITH RECURSIVE sequence(value) AS (VALUES(3) UNION ALL SELECT value + 1 FROM sequence WHERE value < 300)
      INSERT INTO records SELECT value, 'row-' || value FROM sequence;
      CREATE INDEX records_name_index ON records(name);
@@ -195,6 +195,27 @@ describe("SQLite View integration", () => {
     );
   });
 
+  it("shows the complete TEXT value when Enter confirms a grid cell", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    const component = item.component;
+    const grid = component.refs.dataGrid.grid;
+    grid.moveActiveSelectionTo(0, 1);
+
+    lumine.commands.dispatch(grid.element, "core:confirm");
+    await conditionPromise(
+      () =>
+        component.cellDetail?.type === "text" &&
+        component.element.querySelector(".sqlite-view-cell-detail"),
+      "the selected text cell detail",
+    );
+
+    expect(component.cellDetail.value).toBe("displacements_increment");
+    expect(component.element.querySelector(".sqlite-view-cell-detail").textContent).toBe(
+      "displacements_increment",
+    );
+  });
+
   it("delays the visible loading state without delaying aria-busy", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.currentPage, "the first table page");
@@ -314,7 +335,7 @@ describe("SQLite View integration", () => {
     expect(item.component.queryColumns.map((column) => column.name)).toEqual(["id", "name"]);
     expect(item.component.queryRows[0]).toEqual([
       ["i", "1"],
-      ["t", "one", 0],
+      ["t", "displacements_increment", 0],
     ]);
     expect(item.component.history).toBeUndefined();
   });

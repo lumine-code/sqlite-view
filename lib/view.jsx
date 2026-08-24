@@ -1578,7 +1578,8 @@ function columnName(columns, id) {
 function formatDetail(detail) {
   if (detail.type === "blob")
     return `<BLOB ${detail.byteLength} bytes>\n${detail.base64}${detail.truncated ? "\n…" : ""}`;
-  return `${formatScalar(detail.value)}${detail.truncated ? "\n…" : ""}`;
+  const value = detail.type === "text" ? (detail.value ?? "") : formatScalar(detail.value);
+  return `${value}${detail.truncated ? "\n…" : ""}`;
 }
 
 module.exports = SQLiteViewComponent;
