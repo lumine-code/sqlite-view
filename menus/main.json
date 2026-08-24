@@ -1,0 +1,20 @@
+{
+  "menu": [
+    {
+      "label": "Packages",
+      "submenu": [
+        {
+          "label": "SQLite View",
+          "submenu": [
+            { "label": "Execute Query", "command": "sqlite-view:execute-query" },
+            { "label": "Cancel Query", "command": "sqlite-view:cancel-query" },
+            { "label": "Refresh", "command": "sqlite-view:refresh" },
+            { "label": "Focus Schema", "command": "sqlite-view:focus-schema" },
+            { "label": "Focus Query", "command": "sqlite-view:focus-query" },
+            { "label": "Focus Grid", "command": "sqlite-view:focus-grid" }
+          ]
+        }
+      ]
+    }
+  ]
+}

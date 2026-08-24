@@ -1,0 +1,56 @@
+{
+  ".sqlite-view": {
+    "f5": "sqlite-view:refresh"
+  },
+  ".sqlite-view-sidebar": {
+    "f6": "sqlite-view:focus-query",
+    "shift-f6": "sqlite-view:focus-grid"
+  },
+  ".sqlite-view-sidebar-resizer": {
+    "f6": "sqlite-view:focus-query",
+    "shift-f6": "sqlite-view:focus-grid"
+  },
+  ".sqlite-view-object-list": {
+    "up": "core:move-up",
+    "down": "core:move-down",
+    "left": "core:move-left",
+    "right": "core:move-right",
+    "enter": "core:confirm"
+  },
+  ".sqlite-view-query-editor lumine-text-editor:not([mini])": {
+    "cmdorctrl-enter": "sqlite-view:execute-query",
+    "f6": "sqlite-view:focus-grid",
+    "shift-f6": "sqlite-view:focus-schema"
+  },
+  ".sqlite-view-query-resizer": {
+    "f6": "sqlite-view:focus-grid",
+    "shift-f6": "sqlite-view:focus-schema"
+  },
+  ".sqlite-view-grid": {
+    "enter": "core:confirm",
+    "up": "core:move-up",
+    "down": "core:move-down",
+    "left": "core:move-left",
+    "right": "core:move-right",
+    "shift-up": "core:select-up",
+    "shift-down": "core:select-down",
+    "shift-left": "core:select-left",
+    "shift-right": "core:select-right",
+    "pageup": "sqlite-view:grid-page-up",
+    "pagedown": "sqlite-view:grid-page-down",
+    "shift-pageup": "sqlite-view:grid-select-page-up",
+    "shift-pagedown": "sqlite-view:grid-select-page-down",
+    "home": "sqlite-view:grid-move-to-row-start",
+    "end": "sqlite-view:grid-move-to-row-end",
+    "shift-home": "sqlite-view:grid-select-to-row-start",
+    "shift-end": "sqlite-view:grid-select-to-row-end",
+    "cmdorctrl-home": "core:move-to-top",
+    "cmdorctrl-end": "core:move-to-bottom",
+    "cmdorctrl-shift-home": "core:select-to-top",
+    "cmdorctrl-shift-end": "core:select-to-bottom",
+    "shift-space": "sqlite-view:grid-select-row",
+    "ctrl-space": "sqlite-view:grid-select-column",
+    "f6": "sqlite-view:focus-schema",
+    "shift-f6": "sqlite-view:focus-query"
+  }
+}

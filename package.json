@@ -1,0 +1,61 @@
+{
+  "name": "sqlite-view",
+  "author": "lumine-code",
+  "version": "1.0.0",
+  "description": "Browse SQLite databases in a fast, keyboard-driven grid.",
+  "keywords": [
+    "database",
+    "schema",
+    "query",
+    "data-grid",
+    "table",
+    "browser",
+    "relational"
+  ],
+  "repository": "https://github.com/lumine-code/sqlite-view",
+  "bugs": {
+    "url": "https://github.com/lumine-code/sqlite-view/issues"
+  },
+  "license": "MIT",
+  "engines": {
+    "lumine": "^1.0.0"
+  },
+  "backgroundTips": [
+    "Run the current database query with {{ 'sqlite-view:execute-query' | keystroke }}"
+  ],
+  "main": "./lib/main",
+  "files": [
+    "keymaps",
+    "lib",
+    "menus",
+    "spec",
+    "styles"
+  ],
+  "scripts": {
+    "test": "lumine --test spec",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "deserializers": {
+    "SQLiteView": "deserialize"
+  },
+  "providedServices": {
+    "navigation.adapter": {
+      "versions": {
+        "1.0.0": "provideNavigationAdapter"
+      }
+    }
+  },
+  "dependencies": {
+    "@lumine-code/etch": "github:lumine-code/etch#df06b3fca2ec49b1d6b76cb8af3e9f5015a2612c"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-n": "^18.3.0",
+    "globals": "^17.11.0",
+    "prettier": "^3.9.6"
+  }
+}

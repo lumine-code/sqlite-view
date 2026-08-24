@@ -1,0 +1,225 @@
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { DatabaseSync } = require("node:sqlite");
+const SQLiteView = require("../lib/sqlite-view");
+const main = require("../lib/main");
+const { splitStatements, statementAt } = require("../lib/sql-statement");
+
+function fixture() {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "sqlite-view-ui-spec-"));
+  const databasePath = path.join(directory, "catalog.sqlite");
+  const invalidPath = path.join(directory, "not-a-database.db");
+  const corruptPath = path.join(directory, "corrupt.sqlite");
+  const database = new DatabaseSync(databasePath);
+  const wideColumns = Array.from({ length: 99 }, (_, index) => `c${index + 1} INTEGER`).join(", ");
+  database.exec(
+    `CREATE TABLE records(id INTEGER PRIMARY KEY, name TEXT);
+     INSERT INTO records VALUES(1, 'one'), (2, 'two');
+     WITH RECURSIVE sequence(value) AS (VALUES(3) UNION ALL SELECT value + 1 FROM sequence WHERE value < 300)
+     INSERT INTO records SELECT value, 'row-' || value FROM sequence;
+     CREATE TABLE wide(id INTEGER PRIMARY KEY, ${wideColumns});
+     INSERT INTO wide(id) VALUES(1);`,
+  );
+  database.close();
+  fs.writeFileSync(invalidPath, "plain text", "utf8");
+  const corrupt = Buffer.alloc(100);
+  Buffer.from("SQLite format 3\0", "binary").copy(corrupt);
+  fs.writeFileSync(corruptPath, corrupt);
+  return { directory, databasePath, invalidPath, corruptPath };
+}
+
+describe("SQLite View integration", () => {
+  let files;
+  let timeout;
+
+  beforeAll(() => {
+    timeout = jasmine.DEFAULT_TIMEOUT_INTERVAL;
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 15_000;
+  });
+
+  afterAll(() => {
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = timeout;
+  });
+
+  beforeEach(async () => {
+    jasmine.useRealClock();
+    jasmine.attachToDOM(lumine.views.getView(lumine.workspace));
+    files = fixture();
+    await lumine.packages.activatePackage("sqlite-view");
+  });
+
+  afterEach(async () => {
+    const children = [];
+    for (const item of lumine.workspace.getPaneItems()) {
+      if (!item.getPath?.()?.startsWith(files.directory)) continue;
+      const child = item.component?.client?.task?.childProcess;
+      if (child) children.push(child);
+      item.destroy?.();
+    }
+    await lumine.packages.deactivatePackage("sqlite-view");
+    if (children.length) {
+      await conditionPromise(
+        () => children.every((child) => child.exitCode != null || child.signalCode != null),
+        "SQLite child processes to exit",
+      );
+    }
+    fs.rmSync(files.directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
+  });
+
+  it("claims only supported files with a SQLite header", async () => {
+    expect(main.hasSQLiteHeader(files.databasePath)).toBe(true);
+    expect(main.hasSQLiteHeader(files.invalidPath)).toBe(false);
+
+    const databaseItem = await lumine.workspace.open(files.databasePath);
+    expect(databaseItem instanceof SQLiteView).toBe(true);
+    try {
+      await conditionPromise(
+        () => databaseItem.component?.catalog || databaseItem.component?.error,
+        "the SQLite catalog or error",
+      );
+    } catch (error) {
+      const client = databaseItem.component?.client;
+      throw new Error(
+        `${error.message}; active=${client?.active}; pending=${client?.pending?.size}; queue=${client?.queue?.length}; task=${Boolean(client?.task)}; running=${client?.task?.isChildRunning?.()}`,
+        { cause: error },
+      );
+    }
+    expect(databaseItem.component.error).toBeNull();
+    expect(databaseItem.component.catalog.objects.some((object) => object.name === "records")).toBe(
+      true,
+    );
+    await conditionPromise(() => databaseItem.component.description, "the selected SQLite object");
+    expect(databaseItem.component.description.name).toBe("records");
+
+    const otherItem = await lumine.workspace.open(files.invalidPath);
+    expect(otherItem instanceof SQLiteView).toBe(false);
+
+    const corruptItem = await lumine.workspace.open(files.corruptPath);
+    expect(corruptItem instanceof SQLiteView).toBe(true);
+    await conditionPromise(() => corruptItem.component?.error, "the corrupt database error");
+    expect(corruptItem.component.error.code).toBeDefined();
+  });
+
+  it("serializes view state and provides navigable schema headers", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(
+      () => item.component?.description || item.component?.error,
+      "the selected table or error",
+    );
+    expect(item.component.error).toBeNull();
+    item.component.mode = "query";
+    item.component.queryText = "SELECT name FROM records";
+    item.component.setSidebarWidth(320, false);
+    item.component.setQueryEditorHeight(210, false);
+    const state = item.serialize();
+    expect(state.deserializer).toBe("SQLiteView");
+    expect(state.viewState.queryText).toBe("SELECT name FROM records");
+    expect(state.viewState.sidebarWidth).toBe(320);
+    expect(state.viewState.queryEditorHeight).toBe(210);
+    expect(state.viewState).not.toEqual(jasmine.objectContaining({ history: jasmine.anything() }));
+
+    const adapter = main.provideNavigationAdapter();
+    expect(adapter.handlesItem(item)).toBe(true);
+    const headers = item.getNavigationHeaders();
+    expect(headers.find((header) => header.text === "Tables").children[0].text).toBe("records");
+  });
+
+  it("routes workspace commands to the view selected by the event target", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(
+      () => item.component?.description || item.component?.error,
+      "the SQLite view or error",
+    );
+    expect(item.component.error).toBeNull();
+    spyOn(item, "refresh");
+    lumine.commands.dispatch(item.element, "sqlite-view:refresh");
+    expect(item.refresh).toHaveBeenCalled();
+  });
+
+  it("loads only visible column tiles for a wide table", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.description, "the SQLite view");
+    await item.component.selectObject("wide");
+    await conditionPromise(() => item.component.currentPage, "the first wide-table page");
+    const page = item.component.currentPage;
+
+    expect(page.rows[0].cells.length).toBe(100);
+    expect(page.loadedTiles.size).toBe(1);
+    expect(page.rows[0].cells[64]).toEqual(["loading"]);
+
+    item.component.handleVisibleColumns({ start: 64, end: 70 });
+    await conditionPromise(() => page.loadedTiles.has(2), "the visible wide-table tile");
+    expect(page.loadedTiles.size).toBeLessThanOrEqual(3);
+    expect(page.rows[0].cells[64]).toBeNull();
+
+    const resolved = await item.component.resolveGridCell({
+      absoluteRow: 0,
+      columnIndex: 96,
+      value: ["loading"],
+    });
+    expect(resolved).toBeNull();
+    expect(page.loadedTiles.size).toBeLessThanOrEqual(3);
+  });
+
+  it("runs the statement under the cursor and keeps bounded session history", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.description, "the SQLite view");
+    const sql = "SELECT id, name FROM records WHERE id <= 2 ORDER BY id";
+    item.component.refs.queryEditor.editor.setText(sql);
+    item.component.executeQuery();
+    await conditionPromise(
+      () => !item.component.queryRunning && item.component.queryRows.length === 2,
+      "the query result",
+    );
+
+    expect(item.component.mode).toBe("query");
+    expect(item.component.queryColumns.map((column) => column.name)).toEqual(["id", "name"]);
+    expect(item.component.queryRows[0]).toEqual([
+      ["i", "1"],
+      ["t", "one", 0],
+    ]);
+    expect(item.component.history).toEqual([sql]);
+  });
+
+  it("restores a missing database and reopens it when the file reappears", async () => {
+    const missingPath = path.join(files.directory, "restored.sqlite");
+    const item = main.deserialize({
+      path: missingPath,
+      viewState: { mode: "query", queryText: "SELECT 42" },
+    });
+    await lumine.workspace.open(item);
+    expect(item instanceof SQLiteView).toBe(true);
+    expect(item.component.error.code).toBe("FILE_DELETED");
+
+    const database = new DatabaseSync(missingPath);
+    database.exec("CREATE TABLE restored(value INTEGER); INSERT INTO restored VALUES(42)");
+    database.close();
+    await conditionPromise(() => item.component.catalog, "the restored SQLite catalog");
+
+    expect(item.component.error).toBeNull();
+    expect(item.component.queryText).toBe("SELECT 42");
+    expect(item.component.catalog.objects.some((object) => object.name === "restored")).toBe(true);
+  });
+});
+
+describe("SQL statement selection", () => {
+  const sql = "SELECT ';' AS semicolon; -- ;\nSELECT 2 /* ; */; SELECT 3";
+
+  it("does not split semicolons inside strings or comments", () => {
+    expect(splitStatements(sql).map((entry) => entry.text.trim())).toEqual([
+      "SELECT ';' AS semicolon;",
+      "-- ;\nSELECT 2 /* ; */;",
+      "SELECT 3",
+    ]);
+  });
+
+  it("does not split semicolons inside quoted identifiers", () => {
+    expect(splitStatements("SELECT [semi;colon], `also;quoted`; SELECT 2")).toHaveSize(2);
+  });
+
+  it("returns the statement containing the cursor", () => {
+    expect(statementAt(sql, sql.indexOf("SELECT 2"))).toContain("SELECT 2");
+    expect(statementAt(sql, sql.length)).toBe("SELECT 3");
+  });
+});
