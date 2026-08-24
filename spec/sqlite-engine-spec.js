@@ -14,6 +14,7 @@ const {
   queryTaskPath,
   runQuery,
 } = require("../lib/sqlite");
+const { encodeScalar, gridCell } = require("../lib/sqlite/values");
 
 function createFixture() {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "sqlite-view-spec-"));
@@ -28,8 +29,15 @@ function createFixture() {
       generated TEXT GENERATED ALWAYS AS (label || ':' || id) VIRTUAL
     );
     CREATE INDEX items_label_index ON items(label);
+    CREATE INDEX items_partial_index ON items(label) WHERE label IS NOT NULL;
+    CREATE INDEX items_expression_index ON items(lower(label));
     CREATE TRIGGER items_touch AFTER UPDATE OF label ON items BEGIN SELECT 1; END;
+    CREATE TABLE children(id INTEGER PRIMARY KEY, item_id INTEGER REFERENCES items(id));
+    CREATE TABLE strict_items(value TEXT) STRICT;
+    CREATE VIRTUAL TABLE search_docs USING fts5(body);
+    INSERT INTO search_docs(body) VALUES('searchable');
     CREATE TABLE pairs(left_key TEXT, right_key INTEGER, value TEXT, PRIMARY KEY(left_key, right_key)) WITHOUT ROWID;
+    CREATE TABLE "odd "" table"("semi;column" TEXT, "żółć" TEXT);
     CREATE VIEW item_names AS SELECT id, label FROM items;
   `);
   const insert = database.prepare(
@@ -44,6 +52,7 @@ function createFixture() {
   database.prepare("INSERT INTO pairs VALUES(?, ?, ?)").run("a", 2, "second");
   database.prepare("INSERT INTO pairs VALUES(?, ?, ?)").run("b", 1, "third");
   database.prepare("INSERT INTO pairs VALUES(?, ?, ?)").run("b", 2, "fourth");
+  database.prepare('INSERT INTO "odd "" table" VALUES(?, ?)').run("value\0with NUL", "gęślą");
   database.close();
   return { directory, filePath };
 }
@@ -187,6 +196,25 @@ describe("SQLite engine", () => {
       "generated-virtual",
     );
     expect(items.indexes.map((index) => index.name)).toContain("items_label_index");
+    expect(items.indexes.find((index) => index.name === "items_partial_index").partial).toBe(true);
+    expect(
+      items.indexes.find((index) => index.name === "items_expression_index").columns[0].columnId,
+    ).toBe(-2);
+    expect(engine.describe("children").foreignKeys[0]).toEqual(
+      jasmine.objectContaining({ from: "item_id", table: "items", to: "id" }),
+    );
+    expect(engine.describe("strict_items").strict).toBe(true);
+    const virtual = engine.describe("search_docs");
+    expect(virtual.type).toBe("virtual");
+    expect(virtual.identity.mode).toBe("rowid");
+    expect(
+      engine.page({
+        revision: engine.revision,
+        source: { schema: "main", name: "search_docs" },
+        columnIds: [0],
+        direction: "first",
+      }).rows[0].cells[0],
+    ).toEqual(["t", "searchable", 0]);
 
     const pairs = engine.describe("pairs");
     expect(pairs.identity).toEqual({ mode: "primary-key", columnIds: [0, 1] });
@@ -295,6 +323,33 @@ describe("SQLite engine", () => {
     expect(second.rows.map((row) => row.cells[2][1])).toEqual(["third", "fourth"]);
   });
 
+  it("quotes unusual identifiers and preserves Unicode and NUL text", () => {
+    const engine = new BrowseEngine({ path: fixture.filePath });
+    engines.push(engine);
+    const description = engine.describe('odd " table');
+    expect(description.columns.map((column) => column.name)).toEqual(["semi;column", "żółć"]);
+    const page = engine.page({
+      revision: engine.revision,
+      source: { schema: "main", name: 'odd " table' },
+      columnIds: [0, 1],
+      direction: "first",
+    });
+    expect(page.rows[0].cells).toEqual([
+      ["t", "value\0with NUL", 0],
+      ["t", "gęślą", 0],
+    ]);
+  });
+
+  it("normalizes special numbers and text into JSON-safe tagged values", () => {
+    expect(encodeScalar(-0, "real")).toEqual(["r", "-0"]);
+    expect(encodeScalar(Infinity, "real")).toEqual(["r", "Infinity"]);
+    expect(encodeScalar(-Infinity, "real")).toEqual(["r", "-Infinity"]);
+    expect(gridCell("zażółć\0gęślą")).toEqual(["t", "zażółć\0gęślą", 0]);
+    const emoji = gridCell("😀".repeat(4097));
+    expect(Array.from(emoji[1])).toHaveSize(4096);
+    expect(emoji[2]).toBe(1);
+  });
+
   it("streams JSON-safe SELECT results and rejects non-read or trailing statements", () => {
     const events = [];
     const done = runQuery(
@@ -310,6 +365,19 @@ describe("SQLite engine", () => {
     expect(done.rows).toBe(5);
     expect(() => JSON.stringify(events)).not.toThrow();
     expect(JSON.stringify(events)).toContain("9223372036854775807");
+
+    const duplicateEvents = [];
+    runQuery({ path: fixture.filePath, sql: "SELECT 1 AS duplicate, 2 AS duplicate" }, (event) =>
+      duplicateEvents.push(event),
+    );
+    expect(duplicateEvents[0].columns.map((column) => column.name)).toEqual([
+      "duplicate",
+      "duplicate",
+    ]);
+    expect(duplicateEvents.find((event) => event.type === "chunk").rows[0]).toEqual([
+      ["i", "1"],
+      ["i", "2"],
+    ]);
 
     expect(() =>
       runQuery({ path: fixture.filePath, sql: "SELECT 1; DELETE FROM items" }),
