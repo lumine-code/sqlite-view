@@ -47,6 +47,17 @@
       }
     }
   },
+  "configSchema": {
+    "additionalExtensions": {
+      "title": "Additional Database Extensions",
+      "description": "Additional filename extensions to inspect for a SQLite header. Enter each value with or without a leading dot, for example `data` or `.sqlite.backup`.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
   "dependencies": {
     "@lumine-code/etch": "github:lumine-code/etch#df06b3fca2ec49b1d6b76cb8af3e9f5015a2612c"
   },

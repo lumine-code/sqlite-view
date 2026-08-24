@@ -38,6 +38,8 @@ The grid keeps one active cell and rectangular selections. Navigation scrolls th
 
 ## Customization
 
+Add non-standard filename extensions with **Additional Database Extensions** in the package settings. Values may include or omit the leading dot, and SQLite View still verifies the SQLite header before opening a matching file.
+
 Adjust row density and the grid's semantic colours in your `styles.css`:
 
 ```css

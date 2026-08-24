@@ -43,7 +43,16 @@ describe("sqlite-view package assets", () => {
     expect(manifest.bugs.url).toBe("https://github.com/lumine-code/sqlite-view/issues");
     expect(manifest.engines).toEqual({ lumine: "^1.0.0" });
     expect(manifest.activationCommands).toBeUndefined();
-    expect(manifest.configSchema).toBeUndefined();
+    expect(manifest.configSchema).toEqual({
+      additionalExtensions: {
+        title: "Additional Database Extensions",
+        description:
+          "Additional filename extensions to inspect for a SQLite header. Enter each value with or without a leading dot, for example `data` or `.sqlite.backup`.",
+        type: "array",
+        items: { type: "string" },
+        default: [],
+      },
+    });
     expect(manifest.deserializers).toEqual({ SQLiteView: "deserialize" });
     expect(manifest.providedServices).toEqual({
       "navigation.adapter": { versions: { "1.0.0": "provideNavigationAdapter" } },

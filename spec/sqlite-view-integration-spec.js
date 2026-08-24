@@ -12,6 +12,7 @@ function fixture() {
   const databasePath = path.join(directory, "catalog.sqlite");
   const invalidPath = path.join(directory, "not-a-database.db");
   const corruptPath = path.join(directory, "corrupt.sqlite");
+  const customPath = path.join(directory, "catalog.SQLITE-COPY");
   const database = new DatabaseSync(databasePath);
   const wideColumns = Array.from({ length: 99 }, (_, index) => `c${index + 1} INTEGER`).join(", ");
   database.exec(
@@ -23,11 +24,12 @@ function fixture() {
      INSERT INTO wide(id) VALUES(1);`,
   );
   database.close();
+  fs.copyFileSync(databasePath, customPath);
   fs.writeFileSync(invalidPath, "plain text", "utf8");
   const corrupt = Buffer.alloc(100);
   Buffer.from("SQLite format 3\0", "binary").copy(corrupt);
   fs.writeFileSync(corruptPath, corrupt);
-  return { directory, databasePath, invalidPath, corruptPath };
+  return { directory, databasePath, invalidPath, corruptPath, customPath };
 }
 
 describe("SQLite View integration", () => {
@@ -51,6 +53,7 @@ describe("SQLite View integration", () => {
   });
 
   afterEach(async () => {
+    lumine.config.unset("sqlite-view.additionalExtensions");
     const children = [];
     for (const item of lumine.workspace.getPaneItems()) {
       if (!item.getPath?.()?.startsWith(files.directory)) continue;
@@ -100,6 +103,28 @@ describe("SQLite View integration", () => {
     expect(corruptItem instanceof SQLiteView).toBe(true);
     await conditionPromise(() => corruptItem.component?.error, "the corrupt database error");
     expect(corruptItem.component.error.code).toBeDefined();
+  });
+
+  it("opens configured additional extensions after normalizing them", async () => {
+    expect(main.normalizeExtension(" *.SQLITE-COPY ")).toBe(".sqlite-copy");
+    expect(main.normalizeExtension("data")).toBe(".data");
+    expect(main.normalizeExtension("../unsafe")).toBeNull();
+    expect(main.normalizeExtension(".")).toBeNull();
+    expect(main.isSupportedPath(files.customPath)).toBe(false);
+
+    lumine.config.set("sqlite-view.additionalExtensions", [
+      "*.SQLITE-COPY",
+      ".sqlite.backup",
+      "../unsafe",
+    ]);
+
+    expect(main.configuredExtensions()).toEqual(
+      new Set([".sqlite", ".sqlite3", ".db", ".db3", ".sqlite-copy", ".sqlite.backup"]),
+    );
+    expect(main.isSupportedPath(files.customPath)).toBe(true);
+    const item = await lumine.workspace.open(files.customPath);
+    expect(item instanceof SQLiteView).toBe(true);
+    await conditionPromise(() => item.component?.catalog, "the custom-extension database");
   });
 
   it("serializes view state and provides navigable schema headers", async () => {
