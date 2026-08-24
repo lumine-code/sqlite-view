@@ -845,6 +845,12 @@ class SQLiteViewComponent {
     }
   }
 
+  closeCellDetail() {
+    this.cellDetail = null;
+    if (this.transitionSnapshot) this.transitionSnapshot.cellDetail = null;
+    this.patch();
+  }
+
   async refresh() {
     this.pageGeneration += 1;
     if (this.queryRows.length) this.queryStale = true;
@@ -1329,7 +1335,16 @@ class SQLiteViewComponent {
           </button>
         </div>
         {display.cellDetail ? (
-          <pre className="sqlite-view-cell-detail">{formatDetail(display.cellDetail)}</pre>
+          <div className="sqlite-view-cell-detail">
+            <pre className="sqlite-view-cell-detail-value">{formatDetail(display.cellDetail)}</pre>
+            <button
+              type="button"
+              className="btn btn-xs icon icon-x sqlite-view-cell-detail-close"
+              attributes={{ "aria-label": "Close cell detail" }}
+              title="Close cell detail"
+              onClick={() => this.closeCellDetail()}
+            />
+          </div>
         ) : null}
       </section>
     );

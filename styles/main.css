@@ -231,13 +231,29 @@
 }
 
 .sqlite-view-cell-detail {
+  display: flex;
   flex: 0 1 auto;
+  align-items: flex-start;
   max-height: 30%;
-  margin: 0;
-  padding: 0.5em;
   overflow: auto;
   border-top: 1px solid var(--base-border-color);
+}
+
+.sqlite-view-cell-detail-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0.5em;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.sqlite-view-cell-detail-close {
+  position: sticky;
+  top: 0.4em;
+  right: 0.4em;
+  flex: 0 0 auto;
+  margin: 0.4em;
 }
 
 .sqlite-view-structure {

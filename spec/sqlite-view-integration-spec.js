@@ -235,9 +235,20 @@ describe("SQLite View integration", () => {
     );
 
     expect(component.cellDetail.value).toBe("displacements_increment");
-    expect(component.element.querySelector(".sqlite-view-cell-detail").textContent).toBe(
+    const detail = component.element.querySelector(".sqlite-view-cell-detail");
+    expect(detail.querySelector(".sqlite-view-cell-detail-value").textContent).toBe(
       "displacements_increment",
     );
+    const close = detail.querySelector(".sqlite-view-cell-detail-close");
+    expect(close.classList.contains("icon-x")).toBe(true);
+    expect(close.getAttribute("aria-label")).toBe("Close cell detail");
+
+    close.click();
+    await conditionPromise(
+      () => !component.element.querySelector(".sqlite-view-cell-detail"),
+      "the cell detail to close",
+    );
+    expect(component.cellDetail).toBeNull();
   });
 
   it("delays the visible loading state without delaying aria-busy", async () => {
