@@ -661,8 +661,9 @@ class SQLiteViewComponent {
     if (page.degraded) warnings.push("degraded cursor");
     if (page.planFlags?.scan) warnings.push("full scan");
     if (page.planFlags?.tempSort) warnings.push("temporary sort");
+    const extent = this.totalRows != null ? ` of ${this.totalRows}` : page.hasNext ? ", more" : "";
     this.status = page.rows.length
-      ? `Rows ${start}–${end}${page.hasNext ? ", more" : ""}${warnings.length ? ` · ${warnings.join(" · ")}` : ""}`
+      ? `Rows ${start}–${end}${extent}${warnings.length ? ` · ${warnings.join(" · ")}` : ""}`
       : "No rows";
   }
 
@@ -683,12 +684,14 @@ class SQLiteViewComponent {
     if (op !== "is-null" && op !== "not-null")
       filter.value = scalarFromInput(this.refs.filterValue?.value || "");
     this.filters = [...this.filters, filter];
+    this.totalRows = null;
     await this.loadFirstPage(++this.pageGeneration);
   }
 
   async removeFilter(index) {
     if (this.loading) return;
     this.filters = this.filters.filter((_, current) => current !== index);
+    this.totalRows = null;
     await this.loadFirstPage(++this.pageGeneration);
   }
 
@@ -709,7 +712,7 @@ class SQLiteViewComponent {
     await this.changeSort(id, direction);
   }
 
-  async countRows() {
+  async countRows({ goToEnd = false } = {}) {
     if (!this.description || this.counting || this.loading) return;
     this.error = null;
     this.counting = true;
@@ -721,15 +724,17 @@ class SQLiteViewComponent {
         filters: this.filters,
       });
       this.totalRows = result.count;
-      const generation = ++this.pageGeneration;
-      const last = await this.requestPage("last", null, generation, result.count);
-      if (generation !== this.pageGeneration) return;
-      this.currentPage = last;
-      this.previousPage = null;
-      this.nextPage = null;
+      if (goToEnd) {
+        const generation = ++this.pageGeneration;
+        const last = await this.requestPage("last", null, generation, result.count);
+        if (generation !== this.pageGeneration) return;
+        this.currentPage = last;
+        this.previousPage = null;
+        this.nextPage = null;
+        this.prefetchPrevious(generation);
+      }
       this.dataKey += 1;
       this.updatePageStatus();
-      this.prefetchPrevious(generation);
     } catch (error) {
       if (error.code === "CANCELLED") this.status = "Count cancelled.";
       else this.setError(error);
@@ -1234,6 +1239,7 @@ class SQLiteViewComponent {
           </select>
           <input
             ref="filterValue"
+            className="native-key-bindings"
             type="text"
             placeholder="Value"
             aria-label="Filter value"
@@ -1259,6 +1265,13 @@ class SQLiteViewComponent {
             <button type="button" className="btn" onClick={() => this.cancelQuery()}>
               Stop
             </button>
+          ) : null}
+          {this.counting ? (
+            <span className="sqlite-view-row-count">Counting…</span>
+          ) : display.totalRows != null ? (
+            <span className="sqlite-view-row-count">
+              {display.totalRows} {display.totalRows === "1" ? "row" : "rows"}
+            </span>
           ) : null}
         </div>
         {this.filters.length ? (
@@ -1289,7 +1302,7 @@ class SQLiteViewComponent {
           loading={this.loading}
           onNeedPrevious={() => this.previous()}
           onNeedNext={() => this.next()}
-          onRequestEnd={() => this.countRows()}
+          onRequestEnd={() => this.countRows({ goToEnd: true })}
           onSort={(column) => this.cycleSort(column)}
           onConfirm={(cell) => this.showCell(cell)}
           onError={(error) => this.setError(error)}

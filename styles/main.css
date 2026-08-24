@@ -194,6 +194,12 @@
   padding-bottom: 0.3em;
 }
 
+.sqlite-view-row-count {
+  flex: 0 0 auto;
+  color: var(--text-color-subtle);
+  white-space: nowrap;
+}
+
 .sqlite-view-filter {
   max-width: 24em;
   padding: 0.2em 0.5em;

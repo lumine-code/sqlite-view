@@ -195,6 +195,30 @@ describe("SQLite View integration", () => {
     );
   });
 
+  it("keeps filter text editing native and presents Count without changing pages", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    const component = item.component;
+    const valueInput = component.refs.filterValue;
+    expect(valueInput.classList.contains("native-key-bindings")).toBe(true);
+    for (const key of ["Backspace", "Delete"]) {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      valueInput.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
+
+    const pageStart = component.currentPage.before.offset;
+    await component.countRows();
+
+    expect(component.totalRows).toBe("300");
+    expect(component.currentPage.before.offset).toBe(pageStart);
+    expect(component.element.querySelector(".sqlite-view-row-count").textContent.trim()).toBe(
+      "300 rows",
+    );
+    expect(component.status).toContain("Rows 1–256 of 300");
+    expect(component.refs.dataGrid.grid.element.getAttribute("aria-rowcount")).toBe("300");
+  });
+
   it("shows the complete TEXT value when Enter confirms a grid cell", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.currentPage, "the SQLite view");
