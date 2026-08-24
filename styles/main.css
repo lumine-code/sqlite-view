@@ -54,13 +54,6 @@
   z-index: 1;
   width: 5px;
   cursor: col-resize;
-  background: transparent;
-}
-
-.sqlite-view-sidebar-resizer:hover,
-.sqlite-view-sidebar-resizer:focus {
-  background: var(--sqlite-view-accent-color);
-  outline: none;
 }
 
 .sqlite-view-sidebar {
