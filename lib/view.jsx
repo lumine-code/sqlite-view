@@ -8,7 +8,6 @@ const { statementAt } = require("./sql-statement");
 const PAGE_ROWS = 256;
 const COLUMN_TILE = 32;
 const MAX_PAGE_COLUMN_TILES = 2;
-const HISTORY_LIMIT = 50;
 const LOADING_INDICATOR_DELAY_MS = 50;
 const LOADING_CELL = Object.freeze(["loading"]);
 
@@ -121,7 +120,6 @@ class SQLiteViewComponent {
     this.sidebarWidth = Math.min(600, Math.max(180, Number(saved.sidebarWidth) || 260));
     this.queryEditorHeight = Math.min(600, Math.max(96, Number(saved.queryEditorHeight) || 180));
     this.showSystem = Boolean(saved.showSystem);
-    this.history = [];
     this.collapsedGroups = new Set();
     this.queryColumns = [];
     this.queryRows = [];
@@ -770,7 +768,6 @@ class SQLiteViewComponent {
     this.error = null;
     this.queryError = null;
     this.statusBeforeQuery = statusBeforeQuery;
-    if (this.history[0] !== sql) this.history = [sql, ...this.history].slice(0, HISTORY_LIMIT);
     this.queryColumns = [];
     this.queryRows = [];
     this.queryRunning = true;
@@ -827,14 +824,6 @@ class SQLiteViewComponent {
     }
     this.status = "Operation cancelled.";
     this.patch();
-  }
-
-  restoreHistory(event) {
-    const value = event.target.value;
-    if (!value) return;
-    this.queryText = value;
-    this.patch().then(() => this.focusQuery());
-    event.target.value = "";
   }
 
   async showCell({ columnDefinition, record }) {
@@ -1421,15 +1410,6 @@ class SQLiteViewComponent {
           >
             Stop
           </button>
-          <select
-            aria-label="Session query history"
-            onChange={(event) => this.restoreHistory(event)}
-          >
-            <option value="">History…</option>
-            {this.history.map((sql) => (
-              <option value={sql}>{oneLine(sql)}</option>
-            ))}
-          </select>
           {this.queryError ? (
             <span
               className="sqlite-view-query-error"
@@ -1598,10 +1578,6 @@ function formatDetail(detail) {
   if (detail.type === "blob")
     return `<BLOB ${detail.byteLength} bytes>\n${detail.base64}${detail.truncated ? "\n…" : ""}`;
   return `${formatScalar(detail.value)}${detail.truncated ? "\n…" : ""}`;
-}
-
-function oneLine(sql) {
-  return sql.replace(/\s+/g, " ").trim().slice(0, 100);
 }
 
 module.exports = SQLiteViewComponent;

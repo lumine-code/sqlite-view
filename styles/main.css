@@ -195,8 +195,7 @@
 }
 
 .sqlite-view-data-controls input,
-.sqlite-view-data-controls select,
-.sqlite-view-query-actions select {
+.sqlite-view-data-controls select {
   min-width: 0;
 }
 

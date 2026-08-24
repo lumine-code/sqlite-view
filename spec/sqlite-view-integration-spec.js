@@ -277,7 +277,7 @@ describe("SQLite View integration", () => {
     expect(page.loadedTiles.size).toBeLessThanOrEqual(2);
   });
 
-  it("runs the statement under the cursor and keeps bounded session history", async () => {
+  it("runs the statement under the cursor", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.description, "the SQLite view");
     const sql = "SELECT id, name FROM records WHERE id <= 2 ORDER BY id";
@@ -294,10 +294,10 @@ describe("SQLite View integration", () => {
       ["i", "1"],
       ["t", "one", 0],
     ]);
-    expect(item.component.history).toEqual([sql]);
+    expect(item.component.history).toBeUndefined();
   });
 
-  it("shows query errors beside History only inside the Query tab", async () => {
+  it("shows query errors after Stop only inside the Query tab", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.currentPage, "the SQLite view");
     const component = item.component;
@@ -313,9 +313,10 @@ describe("SQLite View integration", () => {
     );
 
     const actions = component.element.querySelector(".sqlite-view-query-actions");
-    const history = actions.querySelector("select");
+    const stop = actions.querySelector("button.icon-primitive-square");
     const queryError = actions.querySelector(".sqlite-view-query-error");
-    expect(history.nextElementSibling).toBe(queryError);
+    expect(actions.querySelector("select")).toBeNull();
+    expect(stop.nextElementSibling).toBe(queryError);
     expect(queryError.textContent).toContain("SQLITE_ERROR");
     expect(queryError.textContent).toContain("no such table");
     expect(component.error).toBeNull();
