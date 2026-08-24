@@ -20,6 +20,7 @@ function fixture() {
      INSERT INTO records VALUES(1, 'one'), (2, 'two');
      WITH RECURSIVE sequence(value) AS (VALUES(3) UNION ALL SELECT value + 1 FROM sequence WHERE value < 300)
      INSERT INTO records SELECT value, 'row-' || value FROM sequence;
+     CREATE INDEX records_name_index ON records(name);
      CREATE TABLE wide(id INTEGER PRIMARY KEY, ${wideColumns});
      INSERT INTO wide(id) VALUES(1);`,
   );
@@ -149,6 +150,18 @@ describe("SQLite View integration", () => {
     expect(adapter.handlesItem(item)).toBe(true);
     const headers = item.getNavigationHeaders();
     expect(headers.find((header) => header.text === "Tables").children[0].text).toBe("records");
+  });
+
+  it("renders a standalone index in Structure mode", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.catalog, "the SQLite catalog");
+
+    await item.component.selectObject("records_name_index");
+
+    expect(item.component.mode).toBe("structure");
+    expect(item.component.description.type).toBe("index");
+    expect(item.component.element.textContent).toContain("records_name_index");
+    expect(item.component.element.textContent).toContain("CREATE INDEX");
   });
 
   it("routes workspace commands to the view selected by the event target", async () => {

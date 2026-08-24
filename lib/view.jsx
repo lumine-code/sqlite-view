@@ -1269,11 +1269,11 @@ class SQLiteViewComponent {
               </table>
             ) : null}
             {description.indexes?.length ? <h3>Indexes</h3> : null}
-            {description.indexes?.map((index) => (
+            {(description.indexes || []).map((index) => (
               <pre>{index.sql || index.name}</pre>
             ))}
             {description.foreignKeys?.length ? <h3>Foreign keys</h3> : null}
-            {description.foreignKeys?.map((key) => (
+            {(description.foreignKeys || []).map((key) => (
               <div>
                 {key.from} → {key.table}.{key.to}
               </div>
