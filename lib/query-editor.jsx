@@ -7,10 +7,11 @@ class QueryEditor {
     etch.initialize(this);
     this.editor = lumine.workspace.buildTextEditor({
       softWrapped: true,
-      lineNumberGutterVisible: true,
+      lineNumberGutterVisible: false,
       placeholderText: "SELECT * FROM …",
     });
     this.editor.element.classList.add("sqlite-view-query-input");
+    this.editor.element.setAttribute("input", "");
     const grammar = lumine.grammars.grammarForScopeName("source.sql");
     if (grammar) lumine.grammars.assignLanguageMode(this.editor.getBuffer(), grammar.scopeName);
     this.editor.setText(props.text || "");

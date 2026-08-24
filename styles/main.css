@@ -285,10 +285,11 @@
 
 .sqlite-view-query-editor {
   flex: 0 0 var(--sqlite-view-query-editor-height, 180px);
+  box-sizing: border-box;
   min-width: 0;
   min-height: calc(var(--sqlite-view-row-height) * 4);
+  padding: 8px;
   overflow: hidden;
-  border-bottom: 1px solid var(--base-border-color);
 }
 
 .sqlite-view-query-resizer {
@@ -304,8 +305,10 @@
   outline: none;
 }
 
-.sqlite-view-query-editor lumine-text-editor {
+.sqlite-view-query-editor lumine-text-editor.sqlite-view-query-input {
   height: 100%;
+  min-height: 2.5em;
+  overflow-y: auto;
 }
 
 .sqlite-view-query > .sqlite-view-grid-host {

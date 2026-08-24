@@ -280,8 +280,11 @@ describe("SQLite View integration", () => {
   it("runs the statement under the cursor", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.description, "the SQLite view");
+    const queryEditor = item.component.refs.queryEditor.editor;
+    expect(queryEditor.element.hasAttribute("input")).toBe(true);
+    expect(queryEditor.isLineNumberGutterVisible()).toBe(false);
     const sql = "SELECT id, name FROM records WHERE id <= 2 ORDER BY id";
-    item.component.refs.queryEditor.editor.setText(sql);
+    queryEditor.setText(sql);
     item.component.executeQuery();
     await conditionPromise(
       () => !item.component.queryRunning && item.component.queryRows.length === 2,
