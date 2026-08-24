@@ -187,6 +187,9 @@ describe("sqlite-view package assets", () => {
     expect(css).toContain("--sqlite-view-accent-color:");
     expect(css).toContain("--sqlite-view-null-color:");
     expect(css).toContain(".sqlite-view-grid-canvas");
+    expect(css).toContain(".sqlite-view-object:not(.selected):hover");
+    expect(css).toContain("background: var(--background-color-highlight);");
+    expect(css).toContain("cursor: default;");
     expect(css).not.toContain("@import");
   });
 

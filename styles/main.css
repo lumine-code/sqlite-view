@@ -125,7 +125,12 @@
   border: 0;
   color: inherit;
   background: transparent;
+  cursor: default;
   text-align: left;
+}
+
+.sqlite-view-object:not(.selected):hover {
+  background: var(--background-color-highlight);
 }
 
 .sqlite-view-object span {
