@@ -9,6 +9,7 @@ const PAGE_ROWS = 256;
 const COLUMN_TILE = 32;
 const MAX_PAGE_COLUMN_TILES = 2;
 const HISTORY_LIMIT = 50;
+const LOADING_INDICATOR_DELAY_MS = 50;
 const LOADING_CELL = Object.freeze(["loading"]);
 
 class GridHost {
@@ -124,7 +125,9 @@ class SQLiteViewComponent {
     this.collapsedGroups = new Set();
     this.queryColumns = [];
     this.queryRows = [];
-    this.status = "Opening database…";
+    this.status = "";
+    this.loading = false;
+    this.loadingVisible = false;
     this.fileAvailable = true;
     this.tileClock = 0;
     this.nextPageId = 1;
@@ -226,11 +229,40 @@ class SQLiteViewComponent {
     await etch.update(this);
   }
 
-  async loadCatalog() {
-    const generation = ++this.pageGeneration;
+  startLoading(message, { continueExisting = false } = {}) {
+    const wasLoading = this.loading;
+    const continuing = continueExisting && wasLoading;
+    if (!wasLoading) this.statusBeforeLoading = this.status;
     this.loading = true;
+    this.pendingLoadingMessage = message;
+    if (continuing) {
+      if (this.loadingVisible) this.status = message;
+      return;
+    }
+    clearTimeout(this.loadingIndicatorTimer);
+    if (wasLoading) this.status = this.statusBeforeLoading;
+    this.loadingVisible = false;
+    this.loadingIndicatorTimer = setTimeout(() => {
+      this.loadingIndicatorTimer = null;
+      if (!this.loading || this.destroyed) return;
+      this.loadingVisible = true;
+      this.status = this.pendingLoadingMessage;
+      this.patch();
+    }, LOADING_INDICATOR_DELAY_MS);
+  }
+
+  stopLoading() {
+    clearTimeout(this.loadingIndicatorTimer);
+    this.loadingIndicatorTimer = null;
+    this.pendingLoadingMessage = null;
+    this.loading = false;
+    this.loadingVisible = false;
+  }
+
+  async loadCatalog(message = "Reading schema…") {
+    const generation = ++this.pageGeneration;
+    this.startLoading(message);
     this.error = null;
-    this.status = "Reading schema…";
     await this.patch();
     try {
       const catalog = await this.client.request("catalog", {
@@ -239,22 +271,25 @@ class SQLiteViewComponent {
       });
       if (generation !== this.pageGeneration) return;
       this.catalog = catalog;
-      this.loading = false;
       const selectable = catalog.objects.find((object) => object.name === this.selectedName);
       const firstDataObject = catalog.objects.find((object) => isDataObject(object));
       const firstObject = selectable || firstDataObject || catalog.objects[0];
-      this.status = `${catalog.objects.length} schema objects`;
       this.props.model.didChangeNavigation();
       await this.patch();
-      if (firstObject) await this.selectObject(firstObject.name);
+      if (firstObject) {
+        await this.selectObject(firstObject.name, { continueLoading: true });
+      } else {
+        this.stopLoading();
+        this.status = "No schema objects";
+        await this.patch();
+      }
     } catch (error) {
       if (generation !== this.pageGeneration) return;
-      this.loading = false;
       this.setError(error);
     }
   }
 
-  async selectObject(name) {
+  async selectObject(name, { continueLoading = false } = {}) {
     const object = this.catalog?.objects.find((entry) => entry.name === name);
     if (!object) return;
     const generation = ++this.pageGeneration;
@@ -265,15 +300,14 @@ class SQLiteViewComponent {
     this.nextPage = null;
     this.totalRows = null;
     this.error = null;
-    this.loading = true;
-    this.status = `Loading ${name}…`;
+    this.startLoading(`Loading ${name}…`, { continueExisting: continueLoading });
     this.dataKey += 1;
     this.props.model.didChangeNavigation();
     await this.patch();
     if (!isDataObject(object)) {
       this.mode = "structure";
       this.description = object;
-      this.loading = false;
+      this.stopLoading();
       this.status = object.type;
       await this.patch();
       return;
@@ -282,8 +316,7 @@ class SQLiteViewComponent {
       const description = await this.client.request("describe", { name });
       if (generation !== this.pageGeneration) return;
       this.description = description;
-      this.loading = false;
-      await this.loadFirstPage(generation);
+      await this.loadFirstPage(generation, { continueLoading: true });
     } catch (error) {
       if (generation === this.pageGeneration) this.setError(error);
     }
@@ -481,9 +514,8 @@ class SQLiteViewComponent {
     return page.rows[localRow]?.cells[columnIndex] ?? null;
   }
 
-  async loadFirstPage(generation = ++this.pageGeneration) {
-    this.loading = true;
-    this.status = "Loading rows…";
+  async loadFirstPage(generation = ++this.pageGeneration, { continueLoading = false } = {}) {
+    this.startLoading("Loading rows…", { continueExisting: continueLoading });
     await this.patch();
     try {
       const page = await this.requestPage("first", null, generation);
@@ -491,7 +523,7 @@ class SQLiteViewComponent {
       this.currentPage = page;
       this.previousPage = null;
       this.nextPage = null;
-      this.loading = false;
+      this.stopLoading();
       this.dataKey += 1;
       this.updatePageStatus();
       await this.patch();
@@ -532,7 +564,7 @@ class SQLiteViewComponent {
   async next() {
     if (!this.currentPage?.hasNext || this.loading) return;
     const generation = this.pageGeneration;
-    this.loading = true;
+    this.startLoading("Loading rows…");
     await this.patch();
     try {
       const next =
@@ -541,7 +573,7 @@ class SQLiteViewComponent {
       this.previousPage = this.currentPage;
       this.currentPage = next;
       this.nextPage = null;
-      this.loading = false;
+      this.stopLoading();
       this.dataKey += 1;
       this.updatePageStatus();
       await this.patch();
@@ -554,7 +586,7 @@ class SQLiteViewComponent {
   async previous() {
     if (!this.currentPage?.hasPrevious || this.loading) return;
     const generation = this.pageGeneration;
-    this.loading = true;
+    this.startLoading("Loading rows…");
     await this.patch();
     try {
       const previous =
@@ -564,7 +596,7 @@ class SQLiteViewComponent {
       this.nextPage = this.currentPage;
       this.currentPage = previous;
       this.previousPage = null;
-      this.loading = false;
+      this.stopLoading();
       this.dataKey += 1;
       this.updatePageStatus();
       await this.patch();
@@ -759,17 +791,16 @@ class SQLiteViewComponent {
 
   handleDatabaseChange(change) {
     this.queryStale = this.queryRows.length > 0;
-    this.status = change.schemaChanged
-      ? "Schema changed; refreshing…"
-      : "Database changed; refreshing…";
-    this.loadCatalog();
+    this.loadCatalog(
+      change.schemaChanged ? "Schema changed; refreshing…" : "Database changed; refreshing…",
+    );
   }
 
   handleClientFailure(error) {
     if (error.code === "FILE_REPLACED") {
       if (this.queryRows.length) this.queryStale = true;
       this.client.restart(this.props.model.getPath());
-      this.loadCatalog();
+      this.loadCatalog("Database replaced; refreshing…");
     } else if (error.code === "FILE_DELETED" || error.code === "FILE_NOT_FOUND") {
       this.handleFileDeleted();
     } else {
@@ -787,6 +818,7 @@ class SQLiteViewComponent {
     if (this.queryRows.length) this.queryStale = true;
     this.fileAvailable = false;
     this.client.suspend();
+    this.stopLoading();
     this.error = {
       code: "FILE_DELETED",
       message: "The database file was deleted. Waiting for it to reappear.",
@@ -822,7 +854,7 @@ class SQLiteViewComponent {
     if (!this.fileAvailable && ["SUSPENDED", "RESTARTED", "DESTROYED"].includes(error?.code)) {
       return;
     }
-    this.loading = false;
+    this.stopLoading();
     this.error = { code: error?.code || "SQLITE_ERROR", message: error?.message || String(error) };
     this.status = this.error.message;
     this.patch();
@@ -1398,7 +1430,7 @@ class SQLiteViewComponent {
           </main>
         </div>
         <footer className="sqlite-view-status" role="status" aria-live="polite">
-          {this.loading || this.queryRunning || this.counting ? (
+          {this.loadingVisible || this.queryRunning || this.counting ? (
             <span className="loading loading-spinner-tiny" />
           ) : null}
           <span>{this.status}</span>
@@ -1411,6 +1443,7 @@ class SQLiteViewComponent {
     if (this.destroyed) return;
     this.destroyed = true;
     clearTimeout(this.suspendTimer);
+    this.stopLoading();
     this.stopSidebarResize();
     this.stopQueryResize();
     this.subscriptions.dispose();

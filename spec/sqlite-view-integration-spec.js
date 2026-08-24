@@ -176,6 +176,42 @@ describe("SQLite View integration", () => {
     expect(item.refresh).toHaveBeenCalled();
   });
 
+  it("delays the visible loading state without delaying aria-busy", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.currentPage, "the first table page");
+    const component = item.component;
+    component.status = "Ready";
+
+    component.startLoading("Loading fast table…");
+    await component.patch();
+    expect(component.loading).toBe(true);
+    expect(component.loadingVisible).toBe(false);
+    expect(component.status).toBe("Ready");
+    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("true");
+    expect(component.element.querySelector(".sqlite-view-status .loading-spinner-tiny")).toBeNull();
+
+    component.stopLoading();
+    component.status = "Fast table ready";
+    await component.patch();
+    await new Promise((resolve) => setTimeout(resolve, 75));
+    expect(component.loadingVisible).toBe(false);
+    expect(component.status).toBe("Fast table ready");
+
+    component.startLoading("Loading slow table…");
+    await component.patch();
+    await conditionPromise(
+      () =>
+        component.loadingVisible &&
+        component.element.querySelector(".sqlite-view-status .loading-spinner-tiny"),
+      "the delayed loading indicator",
+    );
+    expect(component.status).toBe("Loading slow table…");
+    component.stopLoading();
+    component.status = "Slow table ready";
+    await component.patch();
+    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("false");
+  });
+
   it("loads only visible column tiles for a wide table", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.description, "the SQLite view");
