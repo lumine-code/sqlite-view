@@ -46,7 +46,7 @@ Adjust row density and the grid's semantic colours in your `styles.css`:
 .sqlite-view {
   --sqlite-view-row-height: 22px;
   --sqlite-view-header-height: 26px;
-  --sqlite-view-accent-color: var(--text-color-info);
+  --sqlite-view-accent-color: var(--accent-color);
   --sqlite-view-null-color: var(--text-color-subtle);
 }
 ```
