@@ -191,6 +191,7 @@ describe("sqlite-view package assets", () => {
     expect(css).toContain(".sqlite-view-query-error");
     expect(css).toContain("background: var(--background-color-highlight);");
     expect(css).toContain("cursor: default;");
+    expect(css).not.toContain("--tool-panel-background-color");
     expect(css).not.toContain("@import");
   });
 
