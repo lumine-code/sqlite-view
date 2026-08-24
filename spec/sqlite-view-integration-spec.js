@@ -212,6 +212,46 @@ describe("SQLite View integration", () => {
     expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("false");
   });
 
+  it("keeps the previous table painted until the next first page is ready", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.nextPage, "the initial three-page window");
+    const component = item.component;
+    const oldDescription = component.description;
+    const oldDataKey = component.refs.dataGrid.props.dataKey;
+    const oldRows = component.refs.dataGrid.grid.windowRows;
+    const request = component.client.request.bind(component.client);
+    const wideDescription = await request("describe", { name: "wide" });
+    component.loadingIndicatorDelay = 10_000;
+    let releaseDescription;
+    let markDescriptionStarted;
+    const descriptionStarted = new Promise((resolve) => {
+      markDescriptionStarted = resolve;
+    });
+    const pendingDescription = new Promise((resolve) => {
+      releaseDescription = () => resolve(wideDescription);
+    });
+    spyOn(component.client, "request").and.callFake((operation, payload, options) => {
+      if (operation === "describe" && payload.name === "wide") {
+        markDescriptionStarted();
+        return pendingDescription;
+      }
+      return request(operation, payload, options);
+    });
+
+    const switching = component.selectObject("wide");
+    await descriptionStarted;
+    expect(component.loadingVisible).toBe(false);
+    expect(component.getDisplayState().description).toBe(oldDescription);
+    expect(component.refs.dataGrid.props.dataKey).toBe(oldDataKey);
+    expect(component.refs.dataGrid.grid.windowRows).toEqual(oldRows);
+
+    releaseDescription();
+    await switching;
+    expect(component.description.name).toBe("wide");
+    expect(component.getDisplayState().description.name).toBe("wide");
+    expect(component.refs.dataGrid.props.dataKey).not.toBe(oldDataKey);
+  });
+
   it("loads only visible column tiles for a wide table", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.description, "the SQLite view");

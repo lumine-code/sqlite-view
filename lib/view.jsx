@@ -128,6 +128,7 @@ class SQLiteViewComponent {
     this.status = "";
     this.loading = false;
     this.loadingVisible = false;
+    this.loadingIndicatorDelay = LOADING_INDICATOR_DELAY_MS;
     this.fileAvailable = true;
     this.tileClock = 0;
     this.nextPageId = 1;
@@ -232,6 +233,7 @@ class SQLiteViewComponent {
   startLoading(message, { continueExisting = false } = {}) {
     const wasLoading = this.loading;
     const continuing = continueExisting && wasLoading;
+    const alreadyVisible = wasLoading && this.loadingVisible;
     if (!wasLoading) this.statusBeforeLoading = this.status;
     this.loading = true;
     this.pendingLoadingMessage = message;
@@ -240,6 +242,12 @@ class SQLiteViewComponent {
       return;
     }
     clearTimeout(this.loadingIndicatorTimer);
+    if (alreadyVisible) {
+      this.loadingIndicatorTimer = null;
+      this.loadingVisible = true;
+      this.status = message;
+      return;
+    }
     if (wasLoading) this.status = this.statusBeforeLoading;
     this.loadingVisible = false;
     this.loadingIndicatorTimer = setTimeout(() => {
@@ -248,7 +256,7 @@ class SQLiteViewComponent {
       this.loadingVisible = true;
       this.status = this.pendingLoadingMessage;
       this.patch();
-    }, LOADING_INDICATOR_DELAY_MS);
+    }, this.loadingIndicatorDelay);
   }
 
   stopLoading() {
@@ -257,6 +265,33 @@ class SQLiteViewComponent {
     this.pendingLoadingMessage = null;
     this.loading = false;
     this.loadingVisible = false;
+  }
+
+  getDisplayState() {
+    if (this.loading && !this.loadingVisible && this.transitionSnapshot) {
+      return this.transitionSnapshot;
+    }
+    return {
+      selectedName: this.selectedName,
+      description: this.description,
+      currentPage: this.currentPage,
+      previousPage: this.previousPage,
+      nextPage: this.nextPage,
+      totalRows: this.totalRows,
+      cellDetail: this.cellDetail,
+      dataKey: this.dataKey,
+    };
+  }
+
+  preserveVisibleTable() {
+    if (this.loadingVisible) return;
+    const display = this.getDisplayState();
+    if (!display.description && !display.currentPage) return;
+    this.transitionSnapshot = { ...display };
+  }
+
+  finishTableTransition() {
+    this.transitionSnapshot = null;
   }
 
   async loadCatalog(message = "Reading schema…") {
@@ -279,6 +314,13 @@ class SQLiteViewComponent {
       if (firstObject) {
         await this.selectObject(firstObject.name, { continueLoading: true });
       } else {
+        this.description = null;
+        this.currentPage = null;
+        this.previousPage = null;
+        this.nextPage = null;
+        this.totalRows = null;
+        this.dataKey += 1;
+        this.finishTableTransition();
         this.stopLoading();
         this.status = "No schema objects";
         await this.patch();
@@ -292,6 +334,7 @@ class SQLiteViewComponent {
   async selectObject(name, { continueLoading = false } = {}) {
     const object = this.catalog?.objects.find((entry) => entry.name === name);
     if (!object) return;
+    this.preserveVisibleTable();
     const generation = ++this.pageGeneration;
     this.selectedName = name;
     this.description = null;
@@ -299,6 +342,7 @@ class SQLiteViewComponent {
     this.previousPage = null;
     this.nextPage = null;
     this.totalRows = null;
+    this.cellDetail = null;
     this.error = null;
     this.startLoading(`Loading ${name}…`, { continueExisting: continueLoading });
     this.dataKey += 1;
@@ -307,6 +351,7 @@ class SQLiteViewComponent {
     if (!isDataObject(object)) {
       this.mode = "structure";
       this.description = object;
+      this.finishTableTransition();
       this.stopLoading();
       this.status = object.type;
       await this.patch();
@@ -523,6 +568,7 @@ class SQLiteViewComponent {
       this.currentPage = page;
       this.previousPage = null;
       this.nextPage = null;
+      this.finishTableTransition();
       this.stopLoading();
       this.dataKey += 1;
       this.updatePageStatus();
@@ -630,6 +676,7 @@ class SQLiteViewComponent {
   }
 
   async applyFilter() {
+    if (this.loading) return;
     const columnId = Number(this.refs.filterColumn?.value);
     const op = this.refs.filterOperator?.value;
     if (!Number.isInteger(columnId) || !op || this.filters.length >= 8) return;
@@ -641,11 +688,13 @@ class SQLiteViewComponent {
   }
 
   async removeFilter(index) {
+    if (this.loading) return;
     this.filters = this.filters.filter((_, current) => current !== index);
     await this.loadFirstPage(++this.pageGeneration);
   }
 
   async changeSort(columnId, direction) {
+    if (this.loading) return;
     const id = Number(columnId);
     this.sort =
       columnId !== "" && Number.isInteger(id) && direction && direction !== "none"
@@ -662,7 +711,7 @@ class SQLiteViewComponent {
   }
 
   async countRows() {
-    if (!this.description || this.counting) return;
+    if (!this.description || this.counting || this.loading) return;
     this.error = null;
     this.counting = true;
     this.status = "Counting rows…";
@@ -769,7 +818,7 @@ class SQLiteViewComponent {
   }
 
   async showCell({ columnDefinition, record }) {
-    if (!record?.rowKey || !this.description) return;
+    if (!record?.rowKey || !this.description || this.loading) return;
     try {
       this.cellDetail = await this.client.request("cell", {
         source: { schema: "main", name: this.selectedName },
@@ -818,6 +867,7 @@ class SQLiteViewComponent {
     if (this.queryRows.length) this.queryStale = true;
     this.fileAvailable = false;
     this.client.suspend();
+    this.finishTableTransition();
     this.stopLoading();
     this.error = {
       code: "FILE_DELETED",
@@ -854,6 +904,7 @@ class SQLiteViewComponent {
     if (!this.fileAvailable && ["SUSPENDED", "RESTARTED", "DESTROYED"].includes(error?.code)) {
       return;
     }
+    this.finishTableTransition();
     this.stopLoading();
     this.error = { code: error?.code || "SQLITE_ERROR", message: error?.message || String(error) };
     this.status = this.error.message;
@@ -884,6 +935,7 @@ class SQLiteViewComponent {
   }
 
   getNavigationHeaders() {
+    const display = this.getDisplayState();
     const groups = groupObjects(this.catalog?.objects || []);
     return groups.map(([label, objects]) => ({
       text: label,
@@ -892,8 +944,8 @@ class SQLiteViewComponent {
         text: object.name,
         level: 2,
         children:
-          object.name === this.selectedName
-            ? (this.description?.columns || []).map((column) => ({
+          object.name === display.selectedName
+            ? (display.description?.columns || []).map((column) => ({
                 text: column.name,
                 level: 3,
                 children: [],
@@ -901,8 +953,8 @@ class SQLiteViewComponent {
                 sqliteColumn: column.id,
               }))
             : [],
-        currentCount: object.name === this.selectedName ? 1 : 0,
-        stackCount: object.name === this.selectedName ? 1 : 0,
+        currentCount: object.name === display.selectedName ? 1 : 0,
+        stackCount: object.name === display.selectedName ? 1 : 0,
         sqliteObject: object.name,
       })),
     }));
@@ -1115,9 +1167,10 @@ class SQLiteViewComponent {
   }
 
   renderData() {
-    const columns = this.description?.columns || [];
-    const page = this.currentPage;
-    const pages = [this.previousPage, page, this.nextPage].filter(Boolean);
+    const display = this.getDisplayState();
+    const columns = display.description?.columns || [];
+    const page = display.currentPage;
+    const pages = [display.previousPage, page, display.nextPage].filter(Boolean);
     const rows = pages.flatMap((entry) =>
       entry.rows.map((row) => attachRowKey(row.cells, row.rowKey)),
     );
@@ -1215,14 +1268,14 @@ class SQLiteViewComponent {
         ) : null}
         <GridHost
           ref="dataGrid"
-          dataKey={`data:${this.dataKey}`}
-          columns={gridColumns(columns, this.columnWidths[this.selectedName] || {})}
+          dataKey={`data:${display.dataKey}`}
+          columns={gridColumns(columns, this.columnWidths[display.selectedName] || {})}
           rows={rows}
           baseRow={Number(firstPage?.before?.offset || 0)}
-          totalRows={this.totalRows == null ? null : Number(this.totalRows)}
+          totalRows={display.totalRows == null ? null : Number(display.totalRows)}
           hasPrevious={Boolean(firstPage?.hasPrevious)}
           hasNext={Boolean(lastPage?.hasNext)}
-          ariaLabel={`Rows from ${this.selectedName || "SQLite object"}`}
+          ariaLabel={`Rows from ${display.selectedName || "SQLite object"}`}
           loading={this.loading}
           onNeedPrevious={() => this.previous()}
           onNeedNext={() => this.next()}
@@ -1252,15 +1305,15 @@ class SQLiteViewComponent {
             Next
           </button>
         </div>
-        {this.cellDetail ? (
-          <pre className="sqlite-view-cell-detail">{formatDetail(this.cellDetail)}</pre>
+        {display.cellDetail ? (
+          <pre className="sqlite-view-cell-detail">{formatDetail(display.cellDetail)}</pre>
         ) : null}
       </section>
     );
   }
 
   renderStructure() {
-    const description = this.description;
+    const description = this.getDisplayState().description;
     return (
       <section className={`sqlite-view-structure ${this.mode === "structure" ? "" : "is-hidden"}`}>
         {description ? (
