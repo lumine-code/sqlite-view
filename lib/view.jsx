@@ -7,7 +7,7 @@ const { statementAt } = require("./sql-statement");
 
 const PAGE_ROWS = 256;
 const COLUMN_TILE = 32;
-const MAX_PAGE_COLUMN_TILES = 3;
+const MAX_PAGE_COLUMN_TILES = 2;
 const HISTORY_LIMIT = 50;
 const LOADING_CELL = Object.freeze(["loading"]);
 
@@ -127,6 +127,7 @@ class SQLiteViewComponent {
     this.status = "Opening database…";
     this.fileAvailable = true;
     this.tileClock = 0;
+    this.nextPageId = 1;
     this.pageGeneration = 0;
     this.dataKey = 0;
     this.subscriptions = new CompositeDisposable();
@@ -288,21 +289,25 @@ class SQLiteViewComponent {
     }
   }
 
-  async fetchPageTile(direction, cursor, tileIndex, totalRows = this.totalRows) {
+  async fetchPageTile(direction, cursor, tileIndex, totalRows = this.totalRows, requestOptions) {
     const columns = this.description?.columns || [];
     const start = tileIndex * COLUMN_TILE;
     const tile = columns.slice(start, start + COLUMN_TILE);
     if (!tile.length) return null;
-    return this.client.request("page", {
-      source: { schema: "main", name: this.selectedName },
-      columnIds: tile.map((column) => column.id),
-      sort: this.sort,
-      filters: this.filters,
-      direction,
-      cursor,
-      ...(direction === "last" ? { totalRows } : {}),
-      rowLimit: PAGE_ROWS,
-    });
+    return this.client.request(
+      "page",
+      {
+        source: { schema: "main", name: this.selectedName },
+        columnIds: tile.map((column) => column.id),
+        sort: this.sort,
+        filters: this.filters,
+        direction,
+        cursor,
+        ...(direction === "last" ? { totalRows } : {}),
+        rowLimit: PAGE_ROWS,
+      },
+      requestOptions,
+    );
   }
 
   async requestPage(
@@ -325,6 +330,7 @@ class SQLiteViewComponent {
       request: { direction, cursor, totalRows },
       loadedTiles: new Map(),
       pendingTiles: new Map(),
+      cacheId: this.nextPageId++,
     };
     this.applyPageTile(page, result, tileIndex);
     return page;
@@ -366,17 +372,22 @@ class SQLiteViewComponent {
     page.loadedTiles.set(tileIndex, ++this.tileClock);
   }
 
-  async ensurePageTile(page, tileIndex, generation = this.pageGeneration) {
+  async ensurePageTile(page, tileIndex, generation = this.pageGeneration, replaceKey = null) {
     if (!page || page.loadedTiles.has(tileIndex)) {
-      if (page) page.loadedTiles.set(tileIndex, ++this.tileClock);
+      if (page) {
+        page.loadedTiles.set(tileIndex, ++this.tileClock);
+        if (replaceKey) this.client.cancelQueued(replaceKey);
+      }
       return;
     }
-    if (page.pendingTiles.has(tileIndex)) return page.pendingTiles.get(tileIndex);
+    if (page.pendingTiles.has(tileIndex)) return page.pendingTiles.get(tileIndex).promise;
+    const entry = { promise: null, replaceKey };
     const pending = this.fetchPageTile(
       page.request.direction,
       page.request.cursor,
       tileIndex,
       page.request.totalRows,
+      { replaceKey },
     )
       .then((result) => {
         if (!result || generation !== this.pageGeneration) return;
@@ -386,11 +397,16 @@ class SQLiteViewComponent {
         return this.patch();
       })
       .catch((error) => {
-        if (generation === this.pageGeneration) this.setError(error);
+        if (generation === this.pageGeneration && error.code !== "SUPERSEDED") {
+          this.setError(error);
+        }
         throw error;
       })
-      .finally(() => page.pendingTiles.delete(tileIndex));
-    page.pendingTiles.set(tileIndex, pending);
+      .finally(() => {
+        if (page.pendingTiles.get(tileIndex) === entry) page.pendingTiles.delete(tileIndex);
+      });
+    entry.promise = pending;
+    page.pendingTiles.set(tileIndex, entry);
     return pending;
   }
 
@@ -428,8 +444,26 @@ class SQLiteViewComponent {
     const generation = this.pageGeneration;
     const pages = [this.previousPage, this.currentPage, this.nextPage].filter(Boolean);
     for (const page of pages) {
-      for (const tile of this.visibleTileIndexes(range)) {
-        this.ensurePageTile(page, tile, generation).catch(() => {});
+      const tiles = this.visibleTileIndexes(range);
+      const desired = new Map(
+        tiles.map((tile, index) => [tile, `visible:${page.cacheId}:${index}`]),
+      );
+      for (const [tile, entry] of page.pendingTiles) {
+        const desiredKey = desired.get(tile);
+        if (entry.replaceKey && entry.replaceKey !== desiredKey) {
+          if (this.client.cancelQueued(entry.replaceKey)) page.pendingTiles.delete(tile);
+        }
+      }
+      for (let index = tiles.length; index < MAX_PAGE_COLUMN_TILES; index++) {
+        this.client.cancelQueued(`visible:${page.cacheId}:${index}`);
+      }
+      for (let index = 0; index < tiles.length; index++) {
+        this.ensurePageTile(
+          page,
+          tiles[index],
+          generation,
+          `visible:${page.cacheId}:${index}`,
+        ).catch(() => {});
       }
     }
   }
@@ -733,6 +767,7 @@ class SQLiteViewComponent {
 
   handleClientFailure(error) {
     if (error.code === "FILE_REPLACED") {
+      if (this.queryRows.length) this.queryStale = true;
       this.client.restart(this.props.model.getPath());
       this.loadCatalog();
     } else if (error.code === "FILE_DELETED" || error.code === "FILE_NOT_FOUND") {
@@ -749,6 +784,7 @@ class SQLiteViewComponent {
   }
 
   handleFileDeleted() {
+    if (this.queryRows.length) this.queryStale = true;
     this.fileAvailable = false;
     this.client.suspend();
     this.error = {

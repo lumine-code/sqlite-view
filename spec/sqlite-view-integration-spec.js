@@ -4,6 +4,7 @@ const path = require("node:path");
 const { DatabaseSync } = require("node:sqlite");
 const SQLiteView = require("../lib/sqlite-view");
 const main = require("../lib/main");
+const { BrowseClient } = require("../lib/browse-client");
 const { splitStatements, statementAt } = require("../lib/sql-statement");
 
 function fixture() {
@@ -150,7 +151,7 @@ describe("SQLite View integration", () => {
 
     item.component.handleVisibleColumns({ start: 64, end: 70 });
     await conditionPromise(() => page.loadedTiles.has(2), "the visible wide-table tile");
-    expect(page.loadedTiles.size).toBeLessThanOrEqual(3);
+    expect(page.loadedTiles.size).toBeLessThanOrEqual(2);
     expect(page.rows[0].cells[64]).toBeNull();
 
     const resolved = await item.component.resolveGridCell({
@@ -159,7 +160,7 @@ describe("SQLite View integration", () => {
       value: ["loading"],
     });
     expect(resolved).toBeNull();
-    expect(page.loadedTiles.size).toBeLessThanOrEqual(3);
+    expect(page.loadedTiles.size).toBeLessThanOrEqual(2);
   });
 
   it("runs the statement under the cursor and keeps bounded session history", async () => {
@@ -221,5 +222,21 @@ describe("SQL statement selection", () => {
   it("returns the statement containing the cursor", () => {
     expect(statementAt(sql, sql.indexOf("SELECT 2"))).toContain("SELECT 2");
     expect(statementAt(sql, sql.length)).toBe("SELECT 3");
+  });
+});
+
+describe("browse request coordination", () => {
+  it("replaces queued viewport work with the newest request", async () => {
+    const client = Object.create(BrowseClient.prototype);
+    client.destroyed = false;
+    client.queue = [];
+    client.pump = () => {};
+    const first = client
+      .request("page", { tile: 1 }, { replaceKey: "visible:1:0" })
+      .catch((error) => error);
+    client.request("page", { tile: 2 }, { replaceKey: "visible:1:0" });
+
+    expect((await first).code).toBe("SUPERSEDED");
+    expect(client.queue.map((entry) => entry.payload.tile)).toEqual([2]);
   });
 });

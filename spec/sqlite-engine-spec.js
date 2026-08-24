@@ -323,6 +323,22 @@ describe("SQLite engine", () => {
     expect(second.rows.map((row) => row.cells[2][1])).toEqual(["third", "fourth"]);
   });
 
+  it("bounds cached query plans across changing filters", () => {
+    const engine = new BrowseEngine({ path: fixture.filePath });
+    engines.push(engine);
+    for (let index = 0; index < 70; index++) {
+      engine.page({
+        revision: engine.revision,
+        source: { schema: "main", name: "items" },
+        columnIds: [0],
+        filters: [{ columnId: 1, op: "eq", value: ["t", `missing-${index}`] }],
+        direction: "first",
+        rowLimit: 1,
+      });
+    }
+    expect(engine.planCache.size).toBeLessThanOrEqual(64);
+  });
+
   it("quotes unusual identifiers and preserves Unicode and NUL text", () => {
     const engine = new BrowseEngine({ path: fixture.filePath });
     engines.push(engine);
