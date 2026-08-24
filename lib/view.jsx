@@ -1147,13 +1147,14 @@ class SQLiteViewComponent {
       <header className="sqlite-view-toolbar">
         <div className="btn-group">
           {[
-            ["data", "Data"],
-            ["structure", "Structure"],
-            ["query", "Query"],
-          ].map(([id, label]) => (
+            ["data", "Data", "icon-list-unordered"],
+            ["structure", "Structure", "icon-database"],
+            ["query", "Query", "icon-code"],
+          ].map(([id, label, icon]) => (
             <button
+              key={id}
               type="button"
-              className={`btn ${this.mode === id ? "selected" : ""}`}
+              className={`btn icon ${icon} ${this.mode === id ? "selected" : ""}`}
               onClick={() => this.setMode(id)}
             >
               {label}

@@ -176,6 +176,25 @@ describe("SQLite View integration", () => {
     expect(item.refresh).toHaveBeenCalled();
   });
 
+  it("shows the expected icons on every toolbar button", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    const toolbar = item.component.element.querySelector(".sqlite-view-toolbar");
+    const modeButtons = [...toolbar.querySelectorAll(".btn-group .btn")];
+
+    expect(modeButtons.map((button) => button.textContent.trim())).toEqual([
+      "Data",
+      "Structure",
+      "Query",
+    ]);
+    expect(modeButtons[0].classList.contains("icon-list-unordered")).toBe(true);
+    expect(modeButtons[1].classList.contains("icon-database")).toBe(true);
+    expect(modeButtons[2].classList.contains("icon-code")).toBe(true);
+    expect(toolbar.querySelector("button[title='Refresh']").classList.contains("icon-sync")).toBe(
+      true,
+    );
+  });
+
   it("delays the visible loading state without delaying aria-busy", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.currentPage, "the first table page");
