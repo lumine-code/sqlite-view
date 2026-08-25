@@ -118,7 +118,6 @@ class SQLiteViewComponent {
     this.filters = Array.isArray(saved.filters) ? saved.filters.slice(0, 8) : [];
     this.columnWidths = saved.columnWidths || {};
     this.sidebarWidth = Math.min(600, Math.max(180, Number(saved.sidebarWidth) || 260));
-    this.queryEditorHeight = Math.min(600, Math.max(96, Number(saved.queryEditorHeight) || 180));
     this.showSystem = Boolean(saved.showSystem);
     this.collapsedGroups = new Set();
     this.queryColumns = [];
@@ -949,7 +948,6 @@ class SQLiteViewComponent {
       filters: this.filters,
       columnWidths: this.columnWidths,
       sidebarWidth: this.sidebarWidth,
-      queryEditorHeight: this.queryEditorHeight,
       showSystem: this.showSystem,
     };
   }
@@ -1058,45 +1056,6 @@ class SQLiteViewComponent {
   resizeSidebarWithKeyboard(event) {
     if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
     this.setSidebarWidth(this.sidebarWidth + (event.key === "ArrowLeft" ? -16 : 16));
-    event.preventDefault();
-  }
-
-  startQueryResize(event) {
-    if (event.button !== 0) return;
-    this.resizingQuery = true;
-    window.addEventListener("mousemove", this.resizeQuery);
-    window.addEventListener("mouseup", this.stopQueryResize);
-    event.preventDefault();
-  }
-
-  resizeQuery = (event) => {
-    if (!this.resizingQuery || !this.refs.queryEditor) return;
-    const top = this.refs.queryEditor.element.getBoundingClientRect().top;
-    this.setQueryEditorHeight(event.clientY - top, false);
-  };
-
-  stopQueryResize = () => {
-    if (!this.resizingQuery) return;
-    this.resizingQuery = false;
-    window.removeEventListener("mousemove", this.resizeQuery);
-    window.removeEventListener("mouseup", this.stopQueryResize);
-    this.patch();
-  };
-
-  setQueryEditorHeight(height, update = true) {
-    const maximum = Math.max(96, (this.refs.queryPanel?.clientHeight || 500) - 160);
-    this.queryEditorHeight = Math.round(Math.min(maximum, Math.max(96, height)));
-    this.refs.queryPanel?.style.setProperty(
-      "--sqlite-view-query-editor-height",
-      `${this.queryEditorHeight}px`,
-    );
-    this.refs.queryResizer?.setAttribute("aria-valuenow", String(this.queryEditorHeight));
-    if (update) this.patch();
-  }
-
-  resizeQueryWithKeyboard(event) {
-    if (!["ArrowUp", "ArrowDown"].includes(event.key)) return;
-    this.setQueryEditorHeight(this.queryEditorHeight + (event.key === "ArrowUp" ? -16 : 16));
     event.preventDefault();
   }
 
@@ -1420,7 +1379,6 @@ class SQLiteViewComponent {
       <section
         className={`sqlite-view-query ${this.mode === "query" ? "" : "is-hidden"}`}
         ref="queryPanel"
-        style={{ "--sqlite-view-query-editor-height": `${this.queryEditorHeight}px` }}
       >
         <div className="sqlite-view-query-actions">
           <button
@@ -1457,18 +1415,6 @@ class SQLiteViewComponent {
           onDidChange={(text) => {
             this.queryText = text;
           }}
-        />
-        <div
-          className="sqlite-view-query-resizer"
-          ref="queryResizer"
-          role="separator"
-          tabIndex="0"
-          aria-orientation="horizontal"
-          aria-valuemin="96"
-          aria-valuemax="600"
-          aria-valuenow={String(this.queryEditorHeight)}
-          onMouseDown={(event) => this.startQueryResize(event)}
-          onKeyDown={(event) => this.resizeQueryWithKeyboard(event)}
         />
         <GridHost
           ref="queryGrid"
@@ -1536,7 +1482,6 @@ class SQLiteViewComponent {
     clearTimeout(this.suspendTimer);
     this.stopLoading();
     this.stopSidebarResize();
-    this.stopQueryResize();
     this.subscriptions.dispose();
     this.client.destroy();
     return etch.destroy(this);

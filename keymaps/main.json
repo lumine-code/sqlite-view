@@ -22,10 +22,6 @@
     "f6": "sqlite-view:focus-grid",
     "shift-f6": "sqlite-view:focus-schema"
   },
-  ".sqlite-view-query-resizer": {
-    "f6": "sqlite-view:focus-grid",
-    "shift-f6": "sqlite-view:focus-schema"
-  },
   ".sqlite-view-grid": {
     "enter": "core:confirm",
     "up": "core:move-up",

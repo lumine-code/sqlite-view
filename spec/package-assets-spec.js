@@ -148,6 +148,7 @@ describe("sqlite-view package assets", () => {
     expect(query["cmdorctrl-enter"]).toBe("sqlite-view:execute-query");
     expect(query.f6).toBe("sqlite-view:focus-grid");
     expect(query["shift-f6"]).toBe("sqlite-view:focus-schema");
+    expect(keymap[".sqlite-view-query-resizer"]).toBeUndefined();
 
     const grid = keymap[".sqlite-view-grid"];
     expect(grid.up).toBe("core:move-up");
@@ -189,6 +190,10 @@ describe("sqlite-view package assets", () => {
     expect(css).toContain(".sqlite-view-grid-canvas");
     expect(css).toContain(".sqlite-view-object:not(.selected):hover");
     expect(css).toContain(".sqlite-view-query-error");
+    expect(css).toContain("max-height: 10em;");
+    expect(css).not.toContain("--sqlite-view-query-editor-height");
+    expect(css).not.toContain(".sqlite-view-query-resizer");
+    expect(css).not.toContain(".sqlite-view-query-editor:focus-within");
     expect(css).not.toContain(".sqlite-view-sidebar-resizer:hover");
     expect(css).toContain("background: var(--background-color-highlight);");
     expect(css).toContain("cursor: default;");

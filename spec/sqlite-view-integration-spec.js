@@ -138,12 +138,11 @@ describe("SQLite View integration", () => {
     item.component.mode = "query";
     item.component.queryText = "SELECT name FROM records";
     item.component.setSidebarWidth(320, false);
-    item.component.setQueryEditorHeight(210, false);
     const state = item.serialize();
     expect(state.deserializer).toBe("SQLiteView");
     expect(state.viewState.queryText).toBe("SELECT name FROM records");
     expect(state.viewState.sidebarWidth).toBe(320);
-    expect(state.viewState.queryEditorHeight).toBe(210);
+    expect(state.viewState.queryEditorHeight).toBeUndefined();
     expect(state.viewState).not.toEqual(jasmine.objectContaining({ history: jasmine.anything() }));
 
     const adapter = main.provideNavigationAdapter();
@@ -358,6 +357,7 @@ describe("SQLite View integration", () => {
     const queryEditor = item.component.refs.queryEditor.editor;
     expect(queryEditor.element.hasAttribute("input")).toBe(true);
     expect(queryEditor.isLineNumberGutterVisible()).toBe(false);
+    expect(item.component.element.querySelector(".sqlite-view-query-resizer")).toBeNull();
     const sql = "SELECT id, name FROM records WHERE id <= 2 ORDER BY id";
     queryEditor.setText(sql);
     item.component.executeQuery();
