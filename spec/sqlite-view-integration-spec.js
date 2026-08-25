@@ -223,7 +223,18 @@ describe("SQLite View integration", () => {
     await conditionPromise(() => item.component?.currentPage, "the SQLite view");
     const component = item.component;
     const initialGeneration = component.pageGeneration;
-    expect(component.refs.applyFilter.disabled).toBe(true);
+    expect(component.refs.applyFilter.disabled).toBe(false);
+    component.refs.filterValue.value = "pending";
+    component.refs.filterValue.dispatchEvent(new Event("input", { bubbles: true }));
+    component.refs.applyFilter.click();
+    await conditionPromise(
+      () =>
+        component.status === "Choose a filter column before applying the filter." &&
+        document.activeElement === component.refs.filterColumn,
+      "the missing filter column feedback",
+    );
+    expect(component.filters).toEqual([]);
+    expect(component.filterValue).toBe("pending");
 
     component.refs.sortColumn.value = "1";
     component.refs.sortColumn.dispatchEvent(new Event("change", { bubbles: true }));
