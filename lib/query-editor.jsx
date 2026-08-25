@@ -1,6 +1,8 @@
 /** @jsx etch.dom */
 const etch = require("@lumine-code/etch");
 
+const SQL_GRAMMAR_SCOPE = "source.sql";
+
 class QueryEditor {
   constructor(props) {
     this.props = props;
@@ -12,8 +14,7 @@ class QueryEditor {
     });
     this.editor.element.classList.add("sqlite-view-query-input");
     this.editor.element.setAttribute("input", "");
-    const grammar = lumine.grammars.grammarForScopeName("source.sql");
-    if (grammar) lumine.grammars.assignLanguageMode(this.editor.getBuffer(), grammar.scopeName);
+    this.applyGrammar();
     this.editor.setText(props.text || "");
     this.element.appendChild(this.editor.element);
     this.changeDisposable = this.editor.onDidChange(() =>
@@ -36,11 +37,29 @@ class QueryEditor {
     return this.props.statementAt(this.editor.getText(), index);
   }
 
+  applyGrammar() {
+    if (!this.editor || this.destroyed) return false;
+    const assigned = lumine.grammars.assignLanguageMode(this.editor.getBuffer(), SQL_GRAMMAR_SCOPE);
+    if (assigned) {
+      this.grammarDisposable?.dispose();
+      this.grammarDisposable = null;
+    } else if (!this.grammarDisposable) {
+      this.grammarDisposable = lumine.grammars.onDidAddGrammar((grammar) => {
+        if (grammar.scopeName === SQL_GRAMMAR_SCOPE) this.applyGrammar();
+      });
+    }
+    return assigned;
+  }
+
   focus() {
     this.editor.element.focus({ preventScroll: true });
   }
 
   destroy() {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.grammarDisposable?.dispose();
+    this.grammarDisposable = null;
     this.changeDisposable?.dispose();
     this.editor?.destroy();
     return etch.destroy(this);
