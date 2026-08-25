@@ -313,7 +313,6 @@ class SQLiteViewComponent {
       const selectable = catalog.objects.find((object) => object.name === this.selectedName);
       const firstDataObject = catalog.objects.find((object) => isDataObject(object));
       const firstObject = selectable || firstDataObject || catalog.objects[0];
-      this.props.model.didChangeNavigation();
       await this.patch();
       if (firstObject) {
         await this.selectObject(firstObject.name, { continueLoading: true });
@@ -350,7 +349,6 @@ class SQLiteViewComponent {
     this.error = null;
     this.startLoading(`Loading ${name}…`, { continueExisting: continueLoading });
     this.dataKey += 1;
-    this.props.model.didChangeNavigation();
     await this.patch();
     if (!isDataObject(object)) {
       this.mode = "structure";
@@ -1007,47 +1005,6 @@ class SQLiteViewComponent {
       sidebarWidth: this.sidebarWidth,
       showSystem: this.showSystem,
     };
-  }
-
-  getNavigationHeaders() {
-    const display = this.getDisplayState();
-    const groups = groupObjects(this.catalog?.objects || []);
-    return groups.map(([label, objects]) => ({
-      text: label,
-      level: 1,
-      children: objects.map((object) => ({
-        text: object.name,
-        level: 2,
-        children:
-          object.name === display.selectedName
-            ? (display.description?.columns || []).map((column) => ({
-                text: column.name,
-                level: 3,
-                children: [],
-                sqliteObject: object.name,
-                sqliteColumn: column.id,
-              }))
-            : [],
-        currentCount: object.name === display.selectedName ? 1 : 0,
-        stackCount: object.name === display.selectedName ? 1 : 0,
-        sqliteObject: object.name,
-      })),
-    }));
-  }
-
-  navigateTo(header, options = {}) {
-    if (!header?.sqliteObject) return;
-    Promise.resolve(this.selectObject(header.sqliteObject)).then(() => {
-      const columnIndex =
-        header.sqliteColumn == null
-          ? -1
-          : this.description?.columns?.findIndex((column) => column.id === header.sqliteColumn);
-      if (columnIndex >= 0) this.mode = "data";
-      this.patch().then(() => {
-        if (columnIndex >= 0) this.refs.dataGrid?.grid?.moveActiveSelectionTo(0, columnIndex);
-        if (options.focus !== false) this.focusGrid();
-      });
-    });
   }
 
   getDefaultFocusTarget() {

@@ -11,7 +11,6 @@ Browse SQLite databases in a fast, keyboard-driven grid.
 - **Read-only queries**: runs `SELECT`, read-only `WITH`, `VALUES`, and `EXPLAIN QUERY PLAN` statements in an embedded query editor and lets long work be cancelled.
 - **Bounded reads**: pages through results and keeps fixed row and visible-column caches around the viewport, independent of database size.
 - **Clipboard export**: copies the selected cells as tab-separated text for pasting into a spreadsheet or text editor.
-- **Navigation integration**: exposes database tables and views as headers when navigation-panel is installed.
 
 ## Installation
 
@@ -50,10 +49,6 @@ Adjust row density and the grid's semantic colours in your `styles.css`:
   --sqlite-view-null-color: var(--text-color-subtle);
 }
 ```
-
-## Services
-
-- `navigation.adapter`: provided to expose database objects and columns as navigation headers.
 
 ## Contributing
 

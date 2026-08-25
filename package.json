@@ -40,13 +40,6 @@
   "deserializers": {
     "SQLiteView": "deserialize"
   },
-  "providedServices": {
-    "navigation.adapter": {
-      "versions": {
-        "1.0.0": "provideNavigationAdapter"
-      }
-    }
-  },
   "configSchema": {
     "additionalExtensions": {
       "title": "Additional Database Extensions",

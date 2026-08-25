@@ -54,9 +54,7 @@ describe("sqlite-view package assets", () => {
       },
     });
     expect(manifest.deserializers).toEqual({ SQLiteView: "deserialize" });
-    expect(manifest.providedServices).toEqual({
-      "navigation.adapter": { versions: { "1.0.0": "provideNavigationAdapter" } },
-    });
+    expect(manifest.providedServices).toBeUndefined();
     expect(manifest.dependencies).toEqual({
       "@lumine-code/etch": "github:lumine-code/etch#df06b3fca2ec49b1d6b76cb8af3e9f5015a2612c",
     });

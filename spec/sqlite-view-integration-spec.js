@@ -128,7 +128,7 @@ describe("SQLite View integration", () => {
     await conditionPromise(() => item.component?.catalog, "the custom-extension database");
   });
 
-  it("serializes view state and provides navigable schema headers", async () => {
+  it("serializes view state", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(
       () => item.component?.description || item.component?.error,
@@ -144,11 +144,6 @@ describe("SQLite View integration", () => {
     expect(state.viewState.sidebarWidth).toBe(320);
     expect(state.viewState.queryEditorHeight).toBeUndefined();
     expect(state.viewState).not.toEqual(jasmine.objectContaining({ history: jasmine.anything() }));
-
-    const adapter = main.provideNavigationAdapter();
-    expect(adapter.handlesItem(item)).toBe(true);
-    const headers = item.getNavigationHeaders();
-    expect(headers.find((header) => header.text === "Tables").children[0].text).toBe("records");
   });
 
   it("renders a standalone index in Structure mode", async () => {
