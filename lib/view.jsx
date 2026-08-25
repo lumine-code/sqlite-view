@@ -116,6 +116,11 @@ class SQLiteViewComponent {
     this.selectedName = saved.selectedObject || null;
     this.sort = saved.sort || null;
     this.filters = Array.isArray(saved.filters) ? saved.filters.slice(0, 8) : [];
+    this.sortColumnId = this.sort?.columnId ?? "";
+    this.sortDirection = this.sort?.direction || "none";
+    this.filterColumnId = "";
+    this.filterOperator = "eq";
+    this.filterValue = "";
     this.columnWidths = saved.columnWidths || {};
     this.sidebarWidth = Math.min(600, Math.max(180, Number(saved.sidebarWidth) || 260));
     this.showSystem = Boolean(saved.showSystem);
@@ -677,13 +682,14 @@ class SQLiteViewComponent {
 
   async applyFilter() {
     if (this.loading) return;
-    const columnId = Number(this.refs.filterColumn?.value);
-    const op = this.refs.filterOperator?.value;
+    if (this.filterColumnId === "") return;
+    const columnId = Number(this.filterColumnId);
+    const op = this.filterOperator;
     if (!Number.isInteger(columnId) || !op || this.filters.length >= 8) return;
     const filter = { columnId, op };
-    if (op !== "is-null" && op !== "not-null")
-      filter.value = scalarFromInput(this.refs.filterValue?.value || "");
+    if (op !== "is-null" && op !== "not-null") filter.value = scalarFromInput(this.filterValue);
     this.filters = [...this.filters, filter];
+    this.filterValue = "";
     this.totalRows = null;
     await this.loadFirstPage(++this.pageGeneration);
   }
@@ -698,10 +704,22 @@ class SQLiteViewComponent {
   async changeSort(columnId, direction) {
     if (this.loading) return;
     const id = Number(columnId);
-    this.sort =
-      columnId !== "" && Number.isInteger(id) && direction && direction !== "none"
-        ? { columnId: id, direction }
+    const hasColumn = columnId !== "" && Number.isInteger(id);
+    const normalizedDirection =
+      hasColumn && ["asc", "desc"].includes(direction) ? direction : "none";
+    const nextSort =
+      hasColumn && normalizedDirection !== "none"
+        ? { columnId: id, direction: normalizedDirection }
         : null;
+    const unchanged =
+      this.sort?.columnId === nextSort?.columnId && this.sort?.direction === nextSort?.direction;
+    this.sortColumnId = hasColumn ? id : "";
+    this.sortDirection = normalizedDirection;
+    this.sort = nextSort;
+    if (unchanged) {
+      await this.patch();
+      return;
+    }
     await this.loadFirstPage(++this.pageGeneration);
   }
 
@@ -1195,8 +1213,9 @@ class SQLiteViewComponent {
           <select
             ref="sortColumn"
             aria-label="Sort column"
-            value={this.sort?.columnId ?? ""}
-            onChange={(event) => this.changeSort(event.target.value, this.refs.sortDirection.value)}
+            value={this.sortColumnId}
+            disabled={this.loading}
+            onChange={(event) => this.changeSort(event.target.value, this.sortDirection)}
           >
             <option value="">Sort column…</option>
             {columns.map((column) => (
@@ -1206,20 +1225,37 @@ class SQLiteViewComponent {
           <select
             ref="sortDirection"
             aria-label="Sort direction"
-            value={this.sort?.direction || "none"}
-            onChange={(event) => this.changeSort(this.refs.sortColumn.value, event.target.value)}
+            value={this.sortDirection}
+            disabled={this.loading || this.sortColumnId === ""}
+            onChange={(event) => this.changeSort(this.sortColumnId, event.target.value)}
           >
             <option value="none">Unsorted</option>
             <option value="asc">Ascending</option>
             <option value="desc">Descending</option>
           </select>
-          <select ref="filterColumn" aria-label="Filter column">
+          <select
+            ref="filterColumn"
+            aria-label="Filter column"
+            value={this.filterColumnId}
+            onChange={(event) => {
+              this.filterColumnId = event.target.value;
+              this.patch();
+            }}
+          >
             <option value="">Filter column…</option>
             {columns.map((column) => (
               <option value={column.id}>{column.name}</option>
             ))}
           </select>
-          <select ref="filterOperator" aria-label="Filter operator">
+          <select
+            ref="filterOperator"
+            aria-label="Filter operator"
+            value={this.filterOperator}
+            onChange={(event) => {
+              this.filterOperator = event.target.value;
+              this.patch();
+            }}
+          >
             {[
               ["eq", "="],
               ["ne", "≠"],
@@ -1241,13 +1277,19 @@ class SQLiteViewComponent {
             type="text"
             placeholder="Value"
             aria-label="Filter value"
+            value={this.filterValue}
+            disabled={["is-null", "not-null"].includes(this.filterOperator)}
+            onInput={(event) => {
+              this.filterValue = event.target.value;
+            }}
             onKeyDown={(event) => event.key === "Enter" && this.applyFilter()}
           />
           <button
+            ref="applyFilter"
             type="button"
             className="btn"
             onClick={() => this.applyFilter()}
-            disabled={this.filters.length >= 8}
+            disabled={this.loading || this.filterColumnId === "" || this.filters.length >= 8}
           >
             Apply
           </button>

@@ -218,6 +218,69 @@ describe("SQLite View integration", () => {
     expect(component.refs.dataGrid.grid.element.getAttribute("aria-rowcount")).toBe("300");
   });
 
+  it("keeps sort and filter controls synchronized with their applied state", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    const component = item.component;
+    const initialGeneration = component.pageGeneration;
+    expect(component.refs.applyFilter.disabled).toBe(true);
+
+    component.refs.sortColumn.value = "1";
+    component.refs.sortColumn.dispatchEvent(new Event("change", { bubbles: true }));
+    await conditionPromise(
+      () =>
+        component.sortColumnId === 1 &&
+        component.refs.sortColumn.value === "1" &&
+        !component.refs.sortDirection.disabled,
+      "the pending sort column",
+    );
+    expect(component.sort).toBeNull();
+    expect(component.pageGeneration).toBe(initialGeneration);
+    expect(component.refs.sortDirection.disabled).toBe(false);
+
+    component.refs.sortDirection.value = "asc";
+    component.refs.sortDirection.dispatchEvent(new Event("change", { bubbles: true }));
+    await conditionPromise(
+      () => !component.loading && component.sort?.direction === "asc",
+      "the applied sort",
+    );
+    expect(component.sort).toEqual({ columnId: 1, direction: "asc" });
+    expect(component.refs.sortColumn.value).toBe("1");
+    expect(component.refs.sortDirection.value).toBe("asc");
+
+    component.refs.filterColumn.value = "1";
+    component.refs.filterColumn.dispatchEvent(new Event("change", { bubbles: true }));
+    await conditionPromise(
+      () => component.filterColumnId === "1" && !component.refs.applyFilter?.disabled,
+      "the pending filter column",
+    );
+    const valueInput = component.refs.filterValue;
+    valueInput.value = "displacements_increment";
+    valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+    await component.patch();
+    expect(component.filterValue).toBe("displacements_increment");
+    expect(component.refs.filterValue).toBe(
+      component.element.querySelector(".sqlite-view-data-controls input"),
+    );
+    expect(component.refs.filterValue.value).toBe("displacements_increment");
+
+    component.refs.applyFilter.click();
+    await conditionPromise(
+      () => !component.loading && component.filters.length === 1,
+      "the first applied filter",
+    );
+    expect(component.filters[0].value).toEqual(["t", "displacements_increment"]);
+    expect(component.filterValue).toBe("");
+    expect(component.refs.filterValue.value).toBe("");
+
+    component.refs.applyFilter.click();
+    await conditionPromise(
+      () => !component.loading && component.filters.length === 2,
+      "the empty applied filter",
+    );
+    expect(component.filters[1].value).toEqual(["t", ""]);
+  });
+
   it("shows the complete TEXT value when Enter confirms a grid cell", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.currentPage, "the SQLite view");
