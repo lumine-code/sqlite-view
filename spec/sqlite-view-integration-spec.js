@@ -373,6 +373,28 @@ describe("SQLite View integration", () => {
       ["t", "displacements_increment", 0],
     ]);
     expect(item.component.history).toBeUndefined();
+
+    const queryGrid = item.component.refs.queryGrid.grid;
+    queryGrid.moveActiveSelectionTo(0, 1);
+    lumine.commands.dispatch(queryGrid.element, "core:confirm");
+    await conditionPromise(
+      () =>
+        item.component.queryCellDetail?.type === "text" &&
+        item.component.refs.queryPanel.querySelector(".sqlite-view-cell-detail"),
+      "the query result cell detail",
+    );
+
+    const detail = item.component.refs.queryPanel.querySelector(".sqlite-view-cell-detail");
+    expect(detail.querySelector(".sqlite-view-cell-detail-value").textContent).toBe(
+      "displacements_increment",
+    );
+    expect(item.component.cellDetail).toBeNull();
+    detail.querySelector(".sqlite-view-cell-detail-close").click();
+    await conditionPromise(
+      () => !item.component.refs.queryPanel.querySelector(".sqlite-view-cell-detail"),
+      "the query result cell detail to close",
+    );
+    expect(item.component.queryCellDetail).toBeNull();
   });
 
   it("hides object-specific chrome in Query mode", async () => {

@@ -122,6 +122,7 @@ class SQLiteViewComponent {
     this.collapsedGroups = new Set();
     this.queryColumns = [];
     this.queryRows = [];
+    this.queryCellDetail = null;
     this.queryError = null;
     this.status = "";
     this.loading = false;
@@ -774,6 +775,7 @@ class SQLiteViewComponent {
     this.statusBeforeQuery = statusBeforeQuery;
     this.queryColumns = [];
     this.queryRows = [];
+    this.queryCellDetail = null;
     this.queryRunning = true;
     this.queryStale = false;
     this.queryStartedAt = Date.now();
@@ -844,10 +846,36 @@ class SQLiteViewComponent {
     }
   }
 
+  showQueryCell({ value }) {
+    this.queryCellDetail = detailFromQueryCell(value);
+    this.patch();
+  }
+
   closeCellDetail() {
     this.cellDetail = null;
     if (this.transitionSnapshot) this.transitionSnapshot.cellDetail = null;
     this.patch();
+  }
+
+  closeQueryCellDetail() {
+    this.queryCellDetail = null;
+    this.patch();
+  }
+
+  renderCellDetail(detail, onClose) {
+    if (!detail) return null;
+    return (
+      <div className="sqlite-view-cell-detail">
+        <pre className="sqlite-view-cell-detail-value">{formatDetail(detail)}</pre>
+        <button
+          type="button"
+          className="btn btn-xs icon icon-x sqlite-view-cell-detail-close"
+          attributes={{ "aria-label": "Close cell detail" }}
+          title="Close cell detail"
+          onClick={onClose}
+        />
+      </div>
+    );
   }
 
   async refresh() {
@@ -1298,18 +1326,7 @@ class SQLiteViewComponent {
             Next
           </button>
         </div>
-        {display.cellDetail ? (
-          <div className="sqlite-view-cell-detail">
-            <pre className="sqlite-view-cell-detail-value">{formatDetail(display.cellDetail)}</pre>
-            <button
-              type="button"
-              className="btn btn-xs icon icon-x sqlite-view-cell-detail-close"
-              attributes={{ "aria-label": "Close cell detail" }}
-              title="Close cell detail"
-              onClick={() => this.closeCellDetail()}
-            />
-          </div>
-        ) : null}
+        {this.renderCellDetail(display.cellDetail, () => this.closeCellDetail())}
       </section>
     );
   }
@@ -1433,7 +1450,9 @@ class SQLiteViewComponent {
           hasNext={false}
           ariaLabel="SQLite query result"
           loading={this.queryRunning}
+          onConfirm={(cell) => this.showQueryCell(cell)}
         />
+        {this.renderCellDetail(this.queryCellDetail, () => this.closeQueryCellDetail())}
       </section>
     );
   }
@@ -1556,8 +1575,29 @@ function columnName(columns, id) {
 function formatDetail(detail) {
   if (detail.type === "blob")
     return `<BLOB ${detail.byteLength} bytes>\n${detail.base64}${detail.truncated ? "\n…" : ""}`;
+  if (detail.type === "blob-preview")
+    return `<BLOB ${detail.byteLength} bytes>\n${detail.hex}${detail.truncated ? "\n…" : ""}`;
   const value = detail.type === "text" ? (detail.value ?? "") : formatScalar(detail.value);
   return `${value}${detail.truncated ? "\n…" : ""}`;
+}
+
+function detailFromQueryCell(value) {
+  if (value == null) return { type: "null", value: null, truncated: false };
+  if (!Array.isArray(value)) return { type: "text", value: String(value), truncated: false };
+  if (value[0] === "t") {
+    return { type: "text", value: value[1] ?? "", truncated: Boolean(value[2]) };
+  }
+  if (value[0] === "b") {
+    const byteLength = Number(value[1]) || 0;
+    const hex = value[2] || "";
+    return {
+      type: "blob-preview",
+      byteLength,
+      hex,
+      truncated: byteLength > hex.length / 2,
+    };
+  }
+  return { type: value[0] === "i" ? "integer" : "real", value, truncated: false };
 }
 
 module.exports = SQLiteViewComponent;
