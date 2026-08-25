@@ -190,6 +190,8 @@ describe("sqlite-view package assets", () => {
     expect(css).toContain(".sqlite-view-grid-canvas");
     expect(css).toContain(".sqlite-view-object:not(.selected):hover");
     expect(css).toContain(".sqlite-view-query-error");
+    expect(css).toContain(".sqlite-view-layout.is-query-mode");
+    expect(css).toContain(".sqlite-view-refresh");
     expect(css).toContain("max-height: 10em;");
     expect(css).not.toContain("--sqlite-view-query-editor-height");
     expect(css).not.toContain(".sqlite-view-query-resizer");

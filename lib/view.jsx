@@ -994,16 +994,21 @@ class SQLiteViewComponent {
   }
 
   getDefaultFocusTarget() {
-    return (
-      this.refs.sidebar ||
-      this.refs.dataGrid?.element ||
-      this.refs.queryEditor?.element ||
-      this.element
-    );
+    if (this.mode === "query") {
+      return (
+        this.refs.queryEditor?.editor?.element || this.refs.queryGrid?.grid?.element || this.element
+      );
+    }
+    return this.refs.sidebar || this.refs.dataGrid?.grid?.element || this.element;
   }
 
   focusSchema() {
+    if (this.mode === "query") {
+      this.mode = "data";
+      return this.patch().then(() => this.refs.sidebar?.focus({ preventScroll: true }));
+    }
     this.refs.sidebar?.focus({ preventScroll: true });
+    return Promise.resolve();
   }
 
   focusQuery() {
@@ -1062,7 +1067,7 @@ class SQLiteViewComponent {
   renderSidebar() {
     const groups = groupObjects(this.catalog?.objects || []);
     return (
-      <aside className="sqlite-view-sidebar">
+      <aside className={`sqlite-view-sidebar ${this.mode === "query" ? "is-hidden" : ""}`}>
         <div className="sqlite-view-sidebar-header">
           <strong>Schema</strong>
           <label title="Show SQLite system and shadow objects">
@@ -1131,12 +1136,12 @@ class SQLiteViewComponent {
             </button>
           ))}
         </div>
-        <span className="sqlite-view-current-object">
+        <span className={`sqlite-view-current-object ${this.mode === "query" ? "is-hidden" : ""}`}>
           {this.selectedName || "No object selected"}
         </span>
         <button
           type="button"
-          className="btn icon icon-sync"
+          className="btn icon icon-sync sqlite-view-refresh"
           title="Refresh"
           onClick={() => this.refresh()}
         >
@@ -1438,13 +1443,13 @@ class SQLiteViewComponent {
       <div className="sqlite-view-shell">
         {this.renderToolbar()}
         <div
-          className="sqlite-view-layout"
+          className={`sqlite-view-layout ${this.mode === "query" ? "is-query-mode" : ""}`}
           ref="layout"
           style={{ "--sqlite-view-sidebar-width": `${this.sidebarWidth}px` }}
         >
           {this.renderSidebar()}
           <div
-            className="sqlite-view-sidebar-resizer"
+            className={`sqlite-view-sidebar-resizer ${this.mode === "query" ? "is-hidden" : ""}`}
             ref="sidebarResizer"
             role="separator"
             tabIndex="0"

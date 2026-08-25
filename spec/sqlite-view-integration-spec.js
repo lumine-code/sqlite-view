@@ -375,6 +375,35 @@ describe("SQLite View integration", () => {
     expect(item.component.history).toBeUndefined();
   });
 
+  it("hides object-specific chrome in Query mode", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await conditionPromise(() => item.component?.description, "the SQLite view");
+    const component = item.component;
+
+    component.mode = "query";
+    await component.patch();
+
+    expect(component.refs.layout.classList.contains("is-query-mode")).toBe(true);
+    expect(
+      component.element.querySelector(".sqlite-view-sidebar").classList.contains("is-hidden"),
+    ).toBe(true);
+    expect(component.refs.sidebarResizer.classList.contains("is-hidden")).toBe(true);
+    expect(
+      component.element
+        .querySelector(".sqlite-view-current-object")
+        .classList.contains("is-hidden"),
+    ).toBe(true);
+    expect(component.getDefaultFocusTarget()).toBe(component.refs.queryEditor.editor.element);
+
+    await component.focusSchema();
+    expect(component.mode).toBe("data");
+    expect(component.refs.layout.classList.contains("is-query-mode")).toBe(false);
+    expect(
+      component.element.querySelector(".sqlite-view-sidebar").classList.contains("is-hidden"),
+    ).toBe(false);
+    expect(document.activeElement).toBe(component.refs.sidebar);
+  });
+
   it("shows query errors after Stop only inside the Query tab", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.currentPage, "the SQLite view");
