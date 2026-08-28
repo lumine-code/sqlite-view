@@ -322,6 +322,7 @@ describe("SQLite View integration", () => {
   it("delays the visible loading state without delaying aria-busy", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.currentPage, "the first table page");
+    await conditionPromise(() => item.component?.status === "Row 1", "the initial grid selection");
     const component = item.component;
     component.status = "Ready";
 
