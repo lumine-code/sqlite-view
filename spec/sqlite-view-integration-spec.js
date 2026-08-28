@@ -37,6 +37,19 @@ describe("SQLite View integration", () => {
   let files;
   let timeout;
 
+  async function waitForDataView(item, message = "the SQLite view") {
+    await conditionPromise(() => {
+      const component = item.component;
+      return Boolean(
+        component?.currentPage &&
+        !component.loading &&
+        component.refs?.dataGrid?.grid &&
+        component.refs.applyFilter &&
+        !component.refs.applyFilter.disabled,
+      );
+    }, message);
+  }
+
   beforeAll(() => {
     timeout = jasmine.DEFAULT_TIMEOUT_INTERVAL;
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 15_000;
@@ -172,7 +185,7 @@ describe("SQLite View integration", () => {
 
   it("shows the expected icons on every toolbar button", async () => {
     const item = await lumine.workspace.open(files.databasePath);
-    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    await waitForDataView(item);
     const toolbar = item.component.element.querySelector(".sqlite-view-toolbar");
     const modeButtons = [...toolbar.querySelectorAll(".btn-group .btn")];
 
@@ -191,7 +204,7 @@ describe("SQLite View integration", () => {
 
   it("keeps filter text editing native and presents Count without changing pages", async () => {
     const item = await lumine.workspace.open(files.databasePath);
-    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    await waitForDataView(item);
     const component = item.component;
     const valueInput = component.refs.filterValue;
     expect(valueInput.classList.contains("native-key-bindings")).toBe(true);
@@ -215,7 +228,7 @@ describe("SQLite View integration", () => {
 
   it("keeps sort and filter controls synchronized with their applied state", async () => {
     const item = await lumine.workspace.open(files.databasePath);
-    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    await waitForDataView(item);
     const component = item.component;
     const initialGeneration = component.pageGeneration;
     expect(component.refs.applyFilter.disabled).toBe(false);
@@ -289,7 +302,7 @@ describe("SQLite View integration", () => {
 
   it("shows the complete TEXT value when Enter confirms a grid cell", async () => {
     const item = await lumine.workspace.open(files.databasePath);
-    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    await waitForDataView(item);
     await conditionPromise(() => item.component?.status === "Row 1", "the initial grid selection");
     const component = item.component;
     const grid = component.refs.dataGrid.grid;
@@ -322,7 +335,7 @@ describe("SQLite View integration", () => {
 
   it("delays the visible loading state without delaying aria-busy", async () => {
     const item = await lumine.workspace.open(files.databasePath);
-    await conditionPromise(() => item.component?.currentPage, "the first table page");
+    await waitForDataView(item, "the first table page");
     await conditionPromise(() => item.component?.status === "Row 1", "the initial grid selection");
     const component = item.component;
     component.status = "Ready";
@@ -401,7 +414,7 @@ describe("SQLite View integration", () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.description, "the SQLite view");
     await item.component.selectObject("wide");
-    await conditionPromise(() => item.component.currentPage, "the first wide-table page");
+    await waitForDataView(item, "the first wide-table page");
     const page = item.component.currentPage;
 
     expect(page.rows[0].cells.length).toBe(100);
@@ -499,7 +512,7 @@ describe("SQLite View integration", () => {
 
   it("shows query errors after Stop only inside the Query tab", async () => {
     const item = await lumine.workspace.open(files.databasePath);
-    await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    await waitForDataView(item);
     const component = item.component;
     const tableStatus = component.status;
     component.refs.queryEditor.editor.setText("SELECT * FROM missing_table");
