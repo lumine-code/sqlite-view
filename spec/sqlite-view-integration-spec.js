@@ -44,6 +44,7 @@ describe("SQLite View integration", () => {
         component?.currentPage &&
         !component.loading &&
         component.refs?.dataGrid?.grid &&
+        component.refs.dataGrid.props.dataKey === `data:${component.dataKey}` &&
         component.refs.applyFilter &&
         !component.refs.applyFilter.disabled,
       );
@@ -353,22 +354,27 @@ describe("SQLite View integration", () => {
     await conditionPromise(() => item.component?.status === "Row 1", "the initial grid selection");
     const component = item.component;
     component.status = "Ready";
+    component.loadingIndicatorDelay = 10_000;
 
     component.startLoading("Loading fast table…");
     await component.patch();
+    await conditionPromise(
+      () => component.refs.dataGrid.grid.element.getAttribute("aria-busy") === "true",
+      "the busy grid",
+    );
     expect(component.loading).toBe(true);
     expect(component.loadingVisible).toBe(false);
     expect(component.status).toBe("Ready");
-    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("true");
     expect(component.element.querySelector(".sqlite-view-status .loading-spinner-tiny")).toBeNull();
 
     component.stopLoading();
+    expect(component.loadingIndicatorTimer).toBeNull();
     component.status = "Fast table ready";
     await component.patch();
-    await new Promise((resolve) => setTimeout(resolve, 75));
     expect(component.loadingVisible).toBe(false);
     expect(component.status).toBe("Fast table ready");
 
+    component.loadingIndicatorDelay = 0;
     component.startLoading("Loading slow table…");
     await component.patch();
     await conditionPromise(
@@ -381,12 +387,17 @@ describe("SQLite View integration", () => {
     component.stopLoading();
     component.status = "Slow table ready";
     await component.patch();
-    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("false");
+    await conditionPromise(
+      () => component.refs.dataGrid.grid.element.getAttribute("aria-busy") === "false",
+      "the idle grid",
+    );
   });
 
   it("keeps the previous table painted until the next first page is ready", async () => {
     const item = await lumine.workspace.open(files.databasePath);
+    await waitForDataView(item, "the settled initial table");
     await conditionPromise(() => item.component?.nextPage, "the initial three-page window");
+    await waitForDataView(item, "the settled three-page window");
     const component = item.component;
     const oldDescription = component.description;
     const oldDataKey = component.refs.dataGrid.props.dataKey;
