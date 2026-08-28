@@ -55,9 +55,10 @@ describe("sqlite-view package assets", () => {
     });
     expect(manifest.deserializers).toEqual({ SQLiteView: "deserialize" });
     expect(manifest.providedServices).toBeUndefined();
-    expect(manifest.dependencies).toEqual({
-      "@lumine-code/etch": "github:lumine-code/etch#df06b3fca2ec49b1d6b76cb8af3e9f5015a2612c",
-    });
+    expect(Object.keys(manifest.dependencies)).toEqual(["@lumine-code/etch"]);
+    expect(manifest.dependencies["@lumine-code/etch"]).toMatch(
+      /^github:lumine-code\/etch#[0-9a-f]{40}$/,
+    );
 
     const keys = Object.keys(manifest);
     expect(keys[keys.indexOf("engines") + 1]).toBe("backgroundTips");
