@@ -290,6 +290,7 @@ describe("SQLite View integration", () => {
   it("shows the complete TEXT value when Enter confirms a grid cell", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.currentPage, "the SQLite view");
+    await conditionPromise(() => item.component?.status === "Row 1", "the initial grid selection");
     const component = item.component;
     const grid = component.refs.dataGrid.grid;
     grid.moveActiveSelectionTo(0, 1);
