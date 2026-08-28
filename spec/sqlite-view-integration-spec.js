@@ -50,6 +50,20 @@ describe("SQLite View integration", () => {
     }, message);
   }
 
+  async function waitForQueryView(item, rowCount, message = "the SQLite query result") {
+    await conditionPromise(() => {
+      const component = item.component;
+      const grid = component?.refs?.queryGrid?.grid;
+      return Boolean(
+        component &&
+        !component.queryRunning &&
+        component.queryRows.length === rowCount &&
+        grid?.rowCount === rowCount &&
+        grid.columns.length === component.queryColumns.length,
+      );
+    }, message);
+  }
+
   beforeAll(() => {
     timeout = jasmine.DEFAULT_TIMEOUT_INTERVAL;
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 15_000;
@@ -438,47 +452,45 @@ describe("SQLite View integration", () => {
   it("runs the statement under the cursor", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.description, "the SQLite view");
-    const queryEditor = item.component.refs.queryEditor.editor;
+    const component = item.component;
+    const queryEditor = component.refs.queryEditor.editor;
     expect(queryEditor.element.hasAttribute("input")).toBe(true);
     expect(queryEditor.isLineNumberGutterVisible()).toBe(false);
-    expect(item.component.element.querySelector(".sqlite-view-query-resizer")).toBeNull();
+    expect(component.element.querySelector(".sqlite-view-query-resizer")).toBeNull();
     const sql = "SELECT id, name FROM records WHERE id <= 2 ORDER BY id";
     queryEditor.setText(sql);
-    item.component.executeQuery();
-    await conditionPromise(
-      () => !item.component.queryRunning && item.component.queryRows.length === 2,
-      "the query result",
-    );
+    component.executeQuery();
+    await waitForQueryView(item, 2);
 
-    expect(item.component.mode).toBe("query");
-    expect(item.component.queryColumns.map((column) => column.name)).toEqual(["id", "name"]);
-    expect(item.component.queryRows[0]).toEqual([
+    expect(component.mode).toBe("query");
+    expect(component.queryColumns.map((column) => column.name)).toEqual(["id", "name"]);
+    expect(component.queryRows[0]).toEqual([
       ["i", "1"],
       ["t", "displacements_increment", 0],
     ]);
-    expect(item.component.history).toBeUndefined();
+    expect(component.history).toBeUndefined();
 
-    const queryGrid = item.component.refs.queryGrid.grid;
+    const queryGrid = component.refs.queryGrid.grid;
     queryGrid.moveActiveSelectionTo(0, 1);
     lumine.commands.dispatch(queryGrid.element, "core:confirm");
     await conditionPromise(
       () =>
-        item.component.queryCellDetail?.type === "text" &&
-        item.component.refs.queryPanel.querySelector(".sqlite-view-cell-detail"),
+        component.queryCellDetail?.type === "text" &&
+        component.refs.queryPanel.querySelector(".sqlite-view-cell-detail"),
       "the query result cell detail",
     );
 
-    const detail = item.component.refs.queryPanel.querySelector(".sqlite-view-cell-detail");
+    const detail = component.refs.queryPanel.querySelector(".sqlite-view-cell-detail");
     expect(detail.querySelector(".sqlite-view-cell-detail-value").textContent).toBe(
       "displacements_increment",
     );
-    expect(item.component.cellDetail).toBeNull();
+    expect(component.cellDetail).toBeNull();
     detail.querySelector(".sqlite-view-cell-detail-close").click();
     await conditionPromise(
-      () => !item.component.refs.queryPanel.querySelector(".sqlite-view-cell-detail"),
+      () => !component.refs.queryPanel.querySelector(".sqlite-view-cell-detail"),
       "the query result cell detail to close",
     );
-    expect(item.component.queryCellDetail).toBeNull();
+    expect(component.queryCellDetail).toBeNull();
   });
 
   it("hides object-specific chrome in Query mode", async () => {
@@ -557,7 +569,12 @@ describe("SQLite View integration", () => {
     const database = new DatabaseSync(missingPath);
     database.exec("CREATE TABLE restored(value INTEGER); INSERT INTO restored VALUES(42)");
     database.close();
-    await conditionPromise(() => item.component.catalog, "the restored SQLite catalog");
+    await conditionPromise(
+      () =>
+        item.component.error === null &&
+        item.component.catalog?.objects.some((object) => object.name === "restored"),
+      "the reopened SQLite database",
+    );
 
     expect(item.component.error).toBeNull();
     expect(item.component.queryText).toBe("SELECT 42");
