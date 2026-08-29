@@ -98,6 +98,7 @@ describe("SQLite View integration", () => {
       );
     }
     fs.rmSync(files.directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
+    lumine.views.getView(lumine.workspace).focus({ preventScroll: true });
   });
 
   it("claims only supported files with a SQLite header", async () => {
