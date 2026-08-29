@@ -27,8 +27,10 @@ class GridHost {
 
   gridProps() {
     const { columns, rows } = this.props;
+    const document = this.element.ownerDocument;
     if (this.props.bounded) {
       return {
+        document,
         columns,
         rowCount: rows.length,
         pageSize: PAGE_ROWS,
@@ -42,6 +44,7 @@ class GridHost {
       };
     }
     return {
+      document,
       columns,
       pageSize: PAGE_ROWS,
       baseRow: this.props.baseRow,
@@ -95,6 +98,14 @@ class GridHost {
 
   copySelection() {
     return this.grid.copySelection();
+  }
+
+  prepareSurfaceTransition() {
+    this.grid?.prepareSurfaceTransition();
+  }
+
+  commitSurfaceTransition() {
+    this.grid?.commitSurfaceTransition();
   }
 
   destroy() {
@@ -167,6 +178,14 @@ class SQLiteViewComponent {
     this.loadCatalog();
   }
 
+  getDocument() {
+    return this.element.ownerDocument;
+  }
+
+  getWindow() {
+    return this.getDocument().defaultView;
+  }
+
   update(props) {
     this.props = props;
     return etch.update(this);
@@ -181,7 +200,7 @@ class SQLiteViewComponent {
   moveSchema(delta) {
     const items = this.schemaItems();
     if (!items.length) return;
-    const index = items.indexOf(document.activeElement);
+    const index = items.indexOf(this.getDocument().activeElement);
     items[
       Math.min(
         items.length - 1,
@@ -191,7 +210,7 @@ class SQLiteViewComponent {
   }
 
   schemaLeft() {
-    const active = document.activeElement;
+    const active = this.getDocument().activeElement;
     const group = active?.dataset?.group;
     if (group) {
       if (!this.collapsedGroups.has(group)) {
@@ -207,7 +226,7 @@ class SQLiteViewComponent {
   }
 
   schemaRight() {
-    const active = document.activeElement;
+    const active = this.getDocument().activeElement;
     const group = active?.dataset?.group;
     if (group) {
       if (this.collapsedGroups.delete(group)) {
@@ -221,7 +240,7 @@ class SQLiteViewComponent {
   }
 
   confirmSchema() {
-    const active = document.activeElement;
+    const active = this.getDocument().activeElement;
     if (active?.dataset?.object) this.selectObject(active.dataset.object);
     else if (active?.dataset?.group) {
       if (this.collapsedGroups.has(active.dataset.group)) this.schemaRight();
@@ -683,9 +702,11 @@ class SQLiteViewComponent {
     if (this.filterColumnId === "") {
       this.status = "Choose a filter column before applying the filter.";
       await this.patch();
-      cancelAnimationFrame(this.filterFocusFrame);
-      this.filterFocusFrame = requestAnimationFrame(() => {
+      this.cancelFilterFocusFrame();
+      this.filterFocusWindow = this.getWindow();
+      this.filterFocusFrame = this.filterFocusWindow.requestAnimationFrame(() => {
         this.filterFocusFrame = null;
+        this.filterFocusWindow = null;
         if (!this.destroyed && this.mode === "data") {
           this.refs.filterColumn?.focus({ preventScroll: true });
         }
@@ -1045,8 +1066,9 @@ class SQLiteViewComponent {
   startSidebarResize(event) {
     if (event.button !== 0) return;
     this.resizingSidebar = true;
-    window.addEventListener("mousemove", this.resizeSidebar);
-    window.addEventListener("mouseup", this.stopSidebarResize);
+    this.sidebarResizeWindow = this.getWindow();
+    this.sidebarResizeWindow.addEventListener("mousemove", this.resizeSidebar);
+    this.sidebarResizeWindow.addEventListener("mouseup", this.stopSidebarResize);
     event.preventDefault();
   }
 
@@ -1056,13 +1078,42 @@ class SQLiteViewComponent {
     this.setSidebarWidth(event.clientX - rect.left, false);
   };
 
-  stopSidebarResize = () => {
+  stopSidebarResize = (update = true) => {
     if (!this.resizingSidebar) return;
     this.resizingSidebar = false;
-    window.removeEventListener("mousemove", this.resizeSidebar);
-    window.removeEventListener("mouseup", this.stopSidebarResize);
-    this.patch();
+    try {
+      this.sidebarResizeWindow?.removeEventListener("mousemove", this.resizeSidebar);
+      this.sidebarResizeWindow?.removeEventListener("mouseup", this.stopSidebarResize);
+    } catch {
+      // Recovery can begin after the owning native Window has closed.
+    }
+    this.sidebarResizeWindow = null;
+    if (update) this.patch();
   };
+
+  cancelFilterFocusFrame() {
+    if (this.filterFocusFrame != null) {
+      try {
+        this.filterFocusWindow?.cancelAnimationFrame(this.filterFocusFrame);
+      } catch {
+        // Recovery can begin after the owning native Window has closed.
+      }
+      this.filterFocusFrame = null;
+      this.filterFocusWindow = null;
+    }
+  }
+
+  beginWindowSurfaceTransition() {
+    this.stopSidebarResize(false);
+    this.cancelFilterFocusFrame();
+    const grids = [this.refs.dataGrid, this.refs.queryGrid].filter(Boolean);
+    for (const grid of grids) grid.prepareSurfaceTransition();
+    const finish = () => {
+      for (const grid of grids) grid.commitSurfaceTransition();
+      return this.patch();
+    };
+    return { commit: finish, rollback: finish };
+  }
 
   setSidebarWidth(width, update = true) {
     const maximum = Math.max(180, Math.min(600, (this.refs.layout?.clientWidth || 1200) / 2));
@@ -1514,10 +1565,10 @@ class SQLiteViewComponent {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
-    cancelAnimationFrame(this.filterFocusFrame);
+    this.cancelFilterFocusFrame();
     clearTimeout(this.suspendTimer);
     this.stopLoading();
-    this.stopSidebarResize();
+    this.stopSidebarResize(false);
     this.subscriptions.dispose();
     this.client.destroy();
     return etch.destroy(this);
