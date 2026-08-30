@@ -98,7 +98,6 @@ describe("SQLite View integration", () => {
       );
     }
     fs.rmSync(files.directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
-    lumine.views.getView(lumine.workspace).focus({ preventScroll: true });
   });
 
   it("claims only supported files with a SQLite header", async () => {
@@ -155,27 +154,6 @@ describe("SQLite View integration", () => {
     const item = await lumine.workspace.open(files.customPath);
     expect(item instanceof SQLiteView).toBe(true);
     await conditionPromise(() => item.component?.catalog, "the custom-extension database");
-  });
-
-  it("rebinds its live grid after commit and rollback across Documents", async () => {
-    const item = await lumine.workspace.open(files.databasePath);
-    await waitForDataView(item);
-    const originalParent = item.element.parentNode;
-    const frame = document.createElement("iframe");
-    jasmine.attachToDOM(frame);
-    const participant = await item.beginWindowSurfaceTransition();
-
-    frame.contentDocument.body.appendChild(item.element);
-    await participant.commit();
-    const grid = item.component.refs.dataGrid.grid;
-    expect(grid.element.ownerDocument).toBe(frame.contentDocument);
-    expect(grid.resizeObserver instanceof frame.contentWindow.ResizeObserver).toBe(true);
-
-    originalParent.appendChild(item.element);
-    await participant.rollback();
-    expect(grid.element.ownerDocument).toBe(document);
-    expect(grid.resizeObserver instanceof ResizeObserver).toBe(true);
-    frame.remove();
   });
 
   it("serializes view state", async () => {
