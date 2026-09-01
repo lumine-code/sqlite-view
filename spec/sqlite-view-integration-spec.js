@@ -253,18 +253,17 @@ describe("SQLite View integration", () => {
     await conditionPromise(
       () =>
         component.status === "Choose a filter column before applying the filter." &&
-        document.activeElement === component.refs.filterColumn,
+        document.activeElement === component.refs.filterColumn.controller.element,
       "the missing filter column feedback",
     );
     expect(component.filters).toEqual([]);
     expect(component.filterValue).toBe("pending");
 
-    component.refs.sortColumn.value = "1";
-    component.refs.sortColumn.dispatchEvent(new Event("change", { bubbles: true }));
+    component.refs.sortColumn.setValue(1, { emit: true });
     await conditionPromise(
       () =>
         component.sortColumnId === 1 &&
-        component.refs.sortColumn.value === "1" &&
+        component.refs.sortColumn.value === 1 &&
         !component.refs.sortDirection.disabled,
       "the pending sort column",
     );
@@ -272,20 +271,18 @@ describe("SQLite View integration", () => {
     expect(component.pageGeneration).toBe(initialGeneration);
     expect(component.refs.sortDirection.disabled).toBe(false);
 
-    component.refs.sortDirection.value = "asc";
-    component.refs.sortDirection.dispatchEvent(new Event("change", { bubbles: true }));
+    component.refs.sortDirection.setValue("asc", { emit: true });
     await conditionPromise(
       () => !component.loading && component.sort?.direction === "asc",
       "the applied sort",
     );
     expect(component.sort).toEqual({ columnId: 1, direction: "asc" });
-    expect(component.refs.sortColumn.value).toBe("1");
+    expect(component.refs.sortColumn.value).toBe(1);
     expect(component.refs.sortDirection.value).toBe("asc");
 
-    component.refs.filterColumn.value = "1";
-    component.refs.filterColumn.dispatchEvent(new Event("change", { bubbles: true }));
+    component.refs.filterColumn.setValue(1, { emit: true });
     await conditionPromise(
-      () => component.filterColumnId === "1" && !component.refs.applyFilter?.disabled,
+      () => component.filterColumnId === 1 && !component.refs.applyFilter?.disabled,
       "the pending filter column",
     );
     const valueInput = component.refs.filterValue;

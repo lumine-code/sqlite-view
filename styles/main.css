@@ -193,7 +193,7 @@
 }
 
 .sqlite-view-data-controls input,
-.sqlite-view-data-controls select {
+.sqlite-view-data-controls .select-box {
   min-width: 0;
 }
 

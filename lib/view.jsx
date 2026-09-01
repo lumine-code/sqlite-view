@@ -3,6 +3,7 @@ const etch = require("@lumine-code/etch");
 const { CompositeDisposable, Disposable } = require("lumine");
 const { BrowseClient } = require("./browse-client");
 const QueryEditor = require("./query-editor");
+const SelectBox = require("./select-box");
 const { statementAt } = require("./sql-statement");
 
 const PAGE_ROWS = 256;
@@ -1178,53 +1179,51 @@ class SQLiteViewComponent {
     return (
       <section className={`sqlite-view-data ${this.mode === "data" ? "" : "is-hidden"}`}>
         <div className="sqlite-view-data-controls">
-          <select
+          <SelectBox
             ref="sortColumn"
-            aria-label="Sort column"
+            ariaLabel="Sort column"
             value={this.sortColumnId}
             disabled={this.loading}
-            onChange={(event) => this.changeSort(event.target.value, this.sortDirection)}
-          >
-            <option value="">Sort column…</option>
-            {columns.map((column) => (
-              <option value={column.id}>{column.name}</option>
-            ))}
-          </select>
-          <select
+            onDidChange={({ value }) => this.changeSort(value, this.sortDirection)}
+            items={[
+              { value: "", label: "Sort column…" },
+              ...columns.map((column) => ({ value: column.id, label: column.name })),
+            ]}
+          />
+          <SelectBox
             ref="sortDirection"
-            aria-label="Sort direction"
+            ariaLabel="Sort direction"
             value={this.sortDirection}
             disabled={this.loading || this.sortColumnId === ""}
-            onChange={(event) => this.changeSort(this.sortColumnId, event.target.value)}
-          >
-            <option value="none">Unsorted</option>
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-          <select
+            onDidChange={({ value }) => this.changeSort(this.sortColumnId, value)}
+            items={[
+              { value: "none", label: "Unsorted" },
+              { value: "asc", label: "Ascending" },
+              { value: "desc", label: "Descending" },
+            ]}
+          />
+          <SelectBox
             ref="filterColumn"
-            aria-label="Filter column"
+            ariaLabel="Filter column"
             value={this.filterColumnId}
-            onChange={(event) => {
-              this.filterColumnId = event.target.value;
+            onDidChange={({ value }) => {
+              this.filterColumnId = value;
               this.patch();
             }}
-          >
-            <option value="">Filter column…</option>
-            {columns.map((column) => (
-              <option value={column.id}>{column.name}</option>
-            ))}
-          </select>
-          <select
+            items={[
+              { value: "", label: "Filter column…" },
+              ...columns.map((column) => ({ value: column.id, label: column.name })),
+            ]}
+          />
+          <SelectBox
             ref="filterOperator"
-            aria-label="Filter operator"
+            ariaLabel="Filter operator"
             value={this.filterOperator}
-            onChange={(event) => {
-              this.filterOperator = event.target.value;
+            onDidChange={({ value }) => {
+              this.filterOperator = value;
               this.patch();
             }}
-          >
-            {[
+            items={[
               ["eq", "="],
               ["ne", "≠"],
               ["lt", "<"],
@@ -1235,10 +1234,8 @@ class SQLiteViewComponent {
               ["not-null", "not NULL"],
               ["contains", "contains"],
               ["starts-with", "starts with"],
-            ].map(([value, label]) => (
-              <option value={value}>{label}</option>
-            ))}
-          </select>
+            ].map(([value, label]) => ({ value, label }))}
+          />
           <input
             ref="filterValue"
             className="native-key-bindings"
