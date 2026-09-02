@@ -205,6 +205,12 @@ describe("sqlite-view package assets", () => {
     expect(css).not.toContain(".canvas-grid-");
     expect(css).toMatch(/\.sqlite-view \{[^}]*background: var\(--base-background-color\);/);
     expect(css).toMatch(/\.sqlite-view-layout \{[^}]*width: 100%;/);
+    expect(css).toContain(
+      "grid-template-columns: var(--sqlite-view-sidebar-width, 260px) 0 minmax(0, 1fr);",
+    );
+    expect(css).toMatch(
+      /\.sqlite-view-sidebar-resizer \{[^}]*justify-self: center;[^}]*width: 5px;/,
+    );
     expect(css).toMatch(/\.sqlite-view-main \{[^}]*width: 100%;/);
     expect(css).toMatch(
       /\.sqlite-view-grid \{[^}]*width: 100%;[^}]*background: var\(--base-background-color\);/,

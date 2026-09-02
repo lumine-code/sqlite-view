@@ -217,6 +217,19 @@ describe("SQLite View integration", () => {
     );
   });
 
+  it("overlays the sidebar resizer without leaving a gap before the grid", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await waitForDataView(item);
+    const root = item.component.element;
+    const sidebarRect = root.querySelector(".sqlite-view-sidebar").getBoundingClientRect();
+    const resizerRect = root.querySelector(".sqlite-view-sidebar-resizer").getBoundingClientRect();
+    const mainRect = root.querySelector(".sqlite-view-main").getBoundingClientRect();
+
+    expect(Math.abs(sidebarRect.right - mainRect.left)).toBeLessThan(1);
+    expect(resizerRect.left).toBeLessThan(sidebarRect.right);
+    expect(resizerRect.right).toBeGreaterThan(mainRect.left);
+  });
+
   it("keeps filter text editing native and presents Count without changing pages", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await waitForDataView(item);
