@@ -39,14 +39,14 @@ The grid keeps one active cell and rectangular selections. Navigation scrolls th
 
 Add non-standard filename extensions with **Additional Database Extensions** in the package settings. Values may include or omit the leading dot, and SQLite View still verifies the SQLite header before opening a matching file.
 
-Adjust row density and the grid's semantic colours in your `styles.css`:
+Canvas-backed tables share the editor's `--data-grid-*` theme tokens. Adjust them globally from `styles.css`, or scope the same declarations to `.sqlite-view-grid` when only this package should change:
 
 ```css
-.sqlite-view {
-  --sqlite-view-row-height: 22px;
-  --sqlite-view-header-height: 26px;
-  --sqlite-view-accent-color: var(--accent-color);
-  --sqlite-view-null-color: var(--text-color-subtle);
+:root {
+  --data-grid-row-height: 22px;
+  --data-grid-header-height: 26px;
+  --data-grid-accent-color: var(--accent-color);
+  --data-grid-null-color: var(--text-color-subtle);
 }
 ```
 

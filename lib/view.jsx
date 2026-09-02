@@ -245,6 +245,7 @@ class SQLiteViewComponent {
     const alreadyVisible = wasLoading && this.loadingVisible;
     if (!wasLoading) this.statusBeforeLoading = this.status;
     this.loading = true;
+    this.refs.dataGrid?.grid?.setBusy(true);
     this.pendingLoadingMessage = message;
     if (continuing) {
       if (this.loadingVisible) this.status = message;
@@ -274,6 +275,7 @@ class SQLiteViewComponent {
     this.pendingLoadingMessage = null;
     this.loading = false;
     this.loadingVisible = false;
+    this.refs.dataGrid?.grid?.setBusy(false);
   }
 
   getDisplayState() {
@@ -742,6 +744,14 @@ class SQLiteViewComponent {
     const current = this.sort?.columnId === id ? this.sort.direction : null;
     const direction = current === null ? "asc" : current === "asc" ? "desc" : null;
     await this.changeSort(id, direction);
+  }
+
+  async requestGridSort(column, { direction = "cycle" } = {}) {
+    if (direction === "cycle") return this.cycleSort(column);
+    const id = column?.id ?? column?.key;
+    const sqliteDirection =
+      direction === "ascending" ? "asc" : direction === "descending" ? "desc" : null;
+    return this.changeSort(id, sqliteDirection);
   }
 
   async countRows({ goToEnd = false } = {}) {
@@ -1313,7 +1323,7 @@ class SQLiteViewComponent {
           onNeedPrevious={() => this.previous()}
           onNeedNext={() => this.next()}
           onRequestEnd={() => this.countRows({ goToEnd: true })}
-          onSort={(column) => this.cycleSort(column)}
+          onSort={(column, _index, request) => this.requestGridSort(column, request)}
           onConfirm={(cell) => this.showCell(cell)}
           onError={(error) => this.setError(error)}
           onSelectionChange={(_selections, active) => this.announceActiveRow(active)}

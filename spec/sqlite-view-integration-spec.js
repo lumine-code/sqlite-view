@@ -345,6 +345,50 @@ describe("SQLite View integration", () => {
     expect(component.cellDetail).toBeNull();
   });
 
+  it("uses shared spreadsheet selection and sort interactions", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await waitForDataView(item);
+    const component = item.component;
+    const grid = component.refs.dataGrid.grid;
+    const move = spyOn(grid, "moveActiveSelection").and.callThrough();
+
+    grid.startSelection({
+      zone: "body",
+      row: 2,
+      column: grid.columns.length - 1,
+    });
+    lumine.commands.dispatch(grid.element, "core:select-up");
+    lumine.commands.dispatch(grid.element, "core:select-left");
+    expect(move.calls.allArgs()).toEqual([
+      [-1, 0, true],
+      [0, -1, true],
+    ]);
+    expect(grid.publicActiveCell()).toEqual({
+      row: 1,
+      column: 0,
+      windowRow: 1,
+    });
+    expect(grid.normalizedSelections()).toEqual([{ r0: 1, c0: 0, r1: 2, c1: 1 }]);
+
+    grid.selectColumnAt(1);
+    expect(grid.selectionMode).toBe("column");
+    expect(grid.normalizedSelections()[0]).toEqual(jasmine.objectContaining({ c0: 1, c1: 1 }));
+
+    grid.contextTarget = { zone: "column", row: 0, column: 1 };
+    lumine.commands.dispatch(grid.element, "sqlite-view:grid-sort-descending");
+    await conditionPromise(
+      () => !component.loading && component.sort?.direction === "desc",
+      "the descending grid sort",
+    );
+    expect(component.sort.columnId).toBe(1);
+
+    lumine.commands.dispatch(grid.element, "sqlite-view:grid-clear-sort");
+    await conditionPromise(
+      () => !component.loading && component.sort == null,
+      "the cleared grid sort",
+    );
+  });
+
   it("delays the visible loading state without delaying aria-busy", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await waitForDataView(item, "the first table page");
@@ -354,11 +398,9 @@ describe("SQLite View integration", () => {
     component.loadingIndicatorDelay = 10_000;
 
     component.startLoading("Loading fast table…");
+    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("true");
     await component.patch();
-    await conditionPromise(
-      () => component.refs.dataGrid.grid.element.getAttribute("aria-busy") === "true",
-      "the busy grid",
-    );
+    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("true");
     expect(component.loading).toBe(true);
     expect(component.loadingVisible).toBe(false);
     expect(component.status).toBe("Ready");
@@ -382,12 +424,10 @@ describe("SQLite View integration", () => {
     );
     expect(component.status).toBe("Loading slow table…");
     component.stopLoading();
+    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("false");
     component.status = "Slow table ready";
     await component.patch();
-    await conditionPromise(
-      () => component.refs.dataGrid.grid.element.getAttribute("aria-busy") === "false",
-      "the idle grid",
-    );
+    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("false");
   });
 
   it("keeps the previous table painted until the next first page is ready", async () => {

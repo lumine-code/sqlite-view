@@ -116,7 +116,7 @@ describe("sqlite-view package assets", () => {
 
   it("keeps the six public commands flat and in task order", () => {
     const menu = parse("menus/main.json");
-    expect(Object.keys(menu)).toEqual(["menu"]);
+    expect(Object.keys(menu)).toEqual(["menu", "context-menu"]);
     const packages = menu.menu.find((item) => item.label === "Packages");
     const submenu = packages.submenu.find((item) => item.label === "SQLite View");
     expect(submenu.submenu.length).toBe(6);
@@ -130,6 +130,9 @@ describe("sqlite-view package assets", () => {
       "Focus Grid",
     ]);
     expect(menuCommands(menu.menu)).toEqual(PUBLIC_COMMANDS);
+    expect(
+      menu["context-menu"][".sqlite-view-grid"].map((item) => item.label || item.type),
+    ).toEqual(["separator", "Sort Ascending", "Sort Descending", "Clear Sort", "separator"]);
   });
 
   it("scopes every key binding to the view and covers grid navigation", () => {
@@ -191,14 +194,16 @@ describe("sqlite-view package assets", () => {
     expect(packageSource).not.toContain("sqlite-view:toggle");
   });
 
-  it("publishes the canvas sizing and semantic colour hooks", () => {
+  it("inherits shared canvas visuals and publishes only host styles", () => {
     const css = read("styles/main.css");
     expect(css).toContain(".sqlite-view {");
-    expect(css).toContain("--sqlite-view-row-height:");
-    expect(css).toContain("--sqlite-view-header-height:");
-    expect(css).toContain("--sqlite-view-accent-color:");
-    expect(css).toContain("--sqlite-view-null-color:");
-    expect(css).toContain(".canvas-grid-canvas");
+    expect(css).not.toContain("--canvas-grid-");
+    expect(css).not.toContain("--sqlite-view-row-height:");
+    expect(css).not.toContain("--sqlite-view-header-height:");
+    expect(css).not.toContain("--sqlite-view-accent-color:");
+    expect(css).not.toContain("--sqlite-view-null-color:");
+    expect(css).not.toContain(".canvas-grid-canvas");
+    expect(css).toContain("outline: 1px solid var(--data-grid-accent-color);");
     expect(css).toContain(".sqlite-view-object:not(.selected):hover");
     expect(css).toContain("border-radius: var(--component-border-radius);");
     expect(css).toContain(".sqlite-view-query-error");

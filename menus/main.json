@@ -16,5 +16,23 @@
         }
       ]
     }
-  ]
+  ],
+  "context-menu": {
+    ".sqlite-view-grid": [
+      { "type": "separator" },
+      {
+        "label": "Sort Ascending",
+        "command": "sqlite-view:grid-sort-ascending"
+      },
+      {
+        "label": "Sort Descending",
+        "command": "sqlite-view:grid-sort-descending"
+      },
+      {
+        "label": "Clear Sort",
+        "command": "sqlite-view:grid-clear-sort"
+      },
+      { "type": "separator" }
+    ]
+  }
 }
