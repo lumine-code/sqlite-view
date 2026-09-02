@@ -2,115 +2,20 @@
 const etch = require("@lumine-code/etch");
 const { CompositeDisposable, Disposable } = require("lumine");
 const { BrowseClient } = require("./browse-client");
+const {
+  DEFAULT_PAGE_SIZE: PAGE_ROWS,
+  SQLiteCanvasGrid,
+  formatCell,
+  sqliteColumns,
+} = require("./canvas-grid-adapter");
 const QueryEditor = require("./query-editor");
 const SelectBox = require("./select-box");
 const { statementAt } = require("./sql-statement");
 
-const PAGE_ROWS = 256;
 const COLUMN_TILE = 32;
 const MAX_PAGE_COLUMN_TILES = 2;
 const LOADING_INDICATOR_DELAY_MS = 50;
 const LOADING_CELL = Object.freeze(["loading"]);
-
-class GridHost {
-  constructor(props) {
-    this.props = props;
-    etch.initialize(this);
-    this.mountGrid();
-  }
-
-  mountGrid() {
-    const exported = require("@lumine-code/canvas-grid");
-    const CanvasGrid = exported.CanvasGrid || exported;
-    this.grid = new CanvasGrid(this.gridProps());
-    this.element.appendChild(this.grid.element);
-  }
-
-  gridProps() {
-    const { columns, rows } = this.props;
-    if (this.props.bounded) {
-      return {
-        className: "sqlite-view-grid",
-        commandPrefix: "sqlite-view",
-        columns,
-        rowCount: rows.length,
-        pageSize: PAGE_ROWS,
-        fetchRows: async ({ offset, limit }) => rows.slice(offset, offset + limit),
-        onSelectionChange: this.props.onSelectionChange,
-        onConfirm: this.props.onConfirm,
-        onSort: this.props.onSort,
-        onError: this.props.onError,
-        busy: this.props.loading,
-        ariaLabel: this.props.ariaLabel,
-      };
-    }
-    return {
-      className: "sqlite-view-grid",
-      commandPrefix: "sqlite-view",
-      columns,
-      pageSize: PAGE_ROWS,
-      baseRow: this.props.baseRow,
-      windowRows: rows,
-      hasPrevious: this.props.hasPrevious,
-      hasNext: this.props.hasNext,
-      totalRows: this.props.totalRows,
-      onSelectionChange: this.props.onSelectionChange,
-      onConfirm: this.props.onConfirm,
-      onSort: this.props.onSort,
-      onNeedPrevious: this.props.onNeedPrevious,
-      onNeedNext: this.props.onNeedNext,
-      onRequestEnd: this.props.onRequestEnd,
-      onError: this.props.onError,
-      busy: this.props.loading,
-      onVisibleColumnsChange: this.props.onVisibleColumnsChange,
-      resolveCell: this.props.resolveCell,
-      ariaLabel: this.props.ariaLabel,
-    };
-  }
-
-  update(props) {
-    const changed = props.dataKey !== this.props.dataKey;
-    this.props = props;
-    this.grid.setBusy?.(props.loading);
-    if (changed) {
-      if (!props.bounded && this.grid.setWindow) {
-        this.grid.setWindow({
-          baseRow: props.baseRow,
-          rows: props.rows,
-          hasPrevious: props.hasPrevious,
-          hasNext: props.hasNext,
-          totalRows: props.totalRows,
-          columns: props.columns,
-        });
-      } else {
-        this.grid.setData?.({
-          columns: props.columns,
-          rowCount: props.rows.length,
-          pageSize: PAGE_ROWS,
-          fetchRows: async ({ offset, limit }) => props.rows.slice(offset, offset + limit),
-        });
-      }
-    }
-    return Promise.resolve();
-  }
-
-  focus() {
-    this.grid.focus();
-  }
-
-  copySelection() {
-    return this.grid.copySelection();
-  }
-
-  destroy() {
-    this.grid?.destroy();
-    return etch.destroy(this);
-  }
-
-  render() {
-    return <div className="sqlite-view-grid-host" />;
-  }
-}
 
 class SQLiteViewComponent {
   constructor(props) {
@@ -245,7 +150,7 @@ class SQLiteViewComponent {
     const alreadyVisible = wasLoading && this.loadingVisible;
     if (!wasLoading) this.statusBeforeLoading = this.status;
     this.loading = true;
-    this.refs.dataGrid?.grid?.setBusy(true);
+    this.refs.dataGrid?.setBusy(true);
     this.pendingLoadingMessage = message;
     if (continuing) {
       if (this.loadingVisible) this.status = message;
@@ -275,7 +180,7 @@ class SQLiteViewComponent {
     this.pendingLoadingMessage = null;
     this.loading = false;
     this.loadingVisible = false;
-    this.refs.dataGrid?.grid?.setBusy(false);
+    this.refs.dataGrid?.setBusy(false);
   }
 
   getDisplayState() {
@@ -1001,7 +906,8 @@ class SQLiteViewComponent {
   }
 
   getSerializableState() {
-    const widths = this.refs.dataGrid?.grid?.columnWidths;
+    const grid = this.refs.dataGrid;
+    const widths = grid?.getColumnWidths();
     if (Array.isArray(widths) && this.description?.columns) {
       this.columnWidths = {
         ...this.columnWidths,
@@ -1024,11 +930,9 @@ class SQLiteViewComponent {
 
   getDefaultFocusTarget() {
     if (this.mode === "query") {
-      return (
-        this.refs.queryEditor?.editor?.element || this.refs.queryGrid?.grid?.element || this.element
-      );
+      return this.refs.queryEditor?.editor?.element || this.refs.queryGrid?.element || this.element;
     }
-    return this.refs.sidebar || this.refs.dataGrid?.grid?.element || this.element;
+    return this.refs.sidebar || this.refs.dataGrid?.element || this.element;
   }
 
   focusSchema() {
@@ -1309,10 +1213,10 @@ class SQLiteViewComponent {
             ))}
           </div>
         ) : null}
-        <GridHost
+        <SQLiteCanvasGrid
           ref="dataGrid"
           dataKey={`data:${display.dataKey}`}
-          columns={gridColumns(columns, this.columnWidths[display.selectedName] || {})}
+          columns={sqliteColumns(columns, this.columnWidths[display.selectedName] || {}, this.sort)}
           rows={rows}
           baseRow={Number(firstPage?.before?.offset || 0)}
           totalRows={display.totalRows == null ? null : Number(display.totalRows)}
@@ -1460,10 +1364,10 @@ class SQLiteViewComponent {
             this.queryText = text;
           }}
         />
-        <GridHost
+        <SQLiteCanvasGrid
           ref="queryGrid"
           dataKey={`query:${this.dataKey}`}
-          columns={gridColumns(this.queryColumns)}
+          columns={sqliteColumns(this.queryColumns)}
           rows={this.queryRows}
           bounded={true}
           baseRow={0}
@@ -1566,26 +1470,6 @@ function formatScalar(value) {
   return value[1];
 }
 
-function formatCell(value) {
-  if (value == null) return "NULL";
-  if (!Array.isArray(value)) return String(value);
-  if (value[0] === "loading") return "Loading…";
-  if (value[0] === "b") return `<BLOB ${value[1]} bytes>${value[2] ? ` ${value[2]}` : ""}`;
-  if (value[0] === "t") return `${value[1]}${value[2] ? "…" : ""}`;
-  return value[1];
-}
-
-function gridColumns(columns, widths = {}) {
-  return columns.map((column, index) => ({
-    id: column.id ?? index,
-    key: column.id ?? index,
-    label: column.name || column.columnName || `Column ${index + 1}`,
-    name: column.name || column.columnName || `Column ${index + 1}`,
-    width: Number(widths[column.id ?? index]) || 140,
-    format: formatCell,
-  }));
-}
-
 function attachRowKey(cells, rowKey) {
   cells.rowKey = rowKey;
   return cells;
@@ -1624,6 +1508,6 @@ function detailFromQueryCell(value) {
 }
 
 module.exports = SQLiteViewComponent;
-module.exports.GridHost = GridHost;
+module.exports.SQLiteCanvasGrid = SQLiteCanvasGrid;
 module.exports.formatCell = formatCell;
 module.exports.scalarFromInput = scalarFromInput;

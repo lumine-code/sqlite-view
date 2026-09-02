@@ -43,7 +43,7 @@ describe("SQLite View integration", () => {
       return Boolean(
         component?.currentPage &&
         !component.loading &&
-        component.refs?.dataGrid?.grid &&
+        component.refs?.dataGrid &&
         component.refs.dataGrid.props.dataKey === `data:${component.dataKey}` &&
         component.refs.applyFilter &&
         !component.refs.applyFilter.disabled,
@@ -54,7 +54,7 @@ describe("SQLite View integration", () => {
   async function waitForQueryView(item, rowCount, message = "the SQLite query result") {
     await conditionPromise(() => {
       const component = item.component;
-      const grid = component?.refs?.queryGrid?.grid;
+      const grid = component?.refs?.queryGrid;
       return Boolean(
         component &&
         !component.queryRunning &&
@@ -238,7 +238,7 @@ describe("SQLite View integration", () => {
       "300 rows",
     );
     expect(component.status).toContain("Rows 1–256 of 300");
-    expect(component.refs.dataGrid.grid.element.getAttribute("aria-rowcount")).toBe("300");
+    expect(component.refs.dataGrid.element.getAttribute("aria-rowcount")).toBe("300");
   });
 
   it("keeps sort and filter controls synchronized with their applied state", async () => {
@@ -317,7 +317,7 @@ describe("SQLite View integration", () => {
     await waitForDataView(item);
     await conditionPromise(() => item.component?.status === "Row 1", "the initial grid selection");
     const component = item.component;
-    const grid = component.refs.dataGrid.grid;
+    const grid = component.refs.dataGrid;
     grid.moveActiveSelectionTo(0, 1);
 
     lumine.commands.dispatch(grid.element, "core:confirm");
@@ -349,7 +349,7 @@ describe("SQLite View integration", () => {
     const item = await lumine.workspace.open(files.databasePath);
     await waitForDataView(item);
     const component = item.component;
-    const grid = component.refs.dataGrid.grid;
+    const grid = component.refs.dataGrid;
     const move = spyOn(grid, "moveActiveSelection").and.callThrough();
 
     grid.startSelection({
@@ -381,12 +381,14 @@ describe("SQLite View integration", () => {
       "the descending grid sort",
     );
     expect(component.sort.columnId).toBe(1);
+    expect(grid.columns[1].sortDirection).toBe(-1);
 
     lumine.commands.dispatch(grid.element, "sqlite-view:grid-clear-sort");
     await conditionPromise(
       () => !component.loading && component.sort == null,
       "the cleared grid sort",
     );
+    expect(grid.columns.every((column) => column.sortDirection == null)).toBe(true);
   });
 
   it("delays the visible loading state without delaying aria-busy", async () => {
@@ -398,9 +400,9 @@ describe("SQLite View integration", () => {
     component.loadingIndicatorDelay = 10_000;
 
     component.startLoading("Loading fast table…");
-    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("true");
+    expect(component.refs.dataGrid.element.getAttribute("aria-busy")).toBe("true");
     await component.patch();
-    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("true");
+    expect(component.refs.dataGrid.element.getAttribute("aria-busy")).toBe("true");
     expect(component.loading).toBe(true);
     expect(component.loadingVisible).toBe(false);
     expect(component.status).toBe("Ready");
@@ -424,10 +426,10 @@ describe("SQLite View integration", () => {
     );
     expect(component.status).toBe("Loading slow table…");
     component.stopLoading();
-    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("false");
+    expect(component.refs.dataGrid.element.getAttribute("aria-busy")).toBe("false");
     component.status = "Slow table ready";
     await component.patch();
-    expect(component.refs.dataGrid.grid.element.getAttribute("aria-busy")).toBe("false");
+    expect(component.refs.dataGrid.element.getAttribute("aria-busy")).toBe("false");
   });
 
   it("keeps the previous table painted until the next first page is ready", async () => {
@@ -438,7 +440,7 @@ describe("SQLite View integration", () => {
     const component = item.component;
     const oldDescription = component.description;
     const oldDataKey = component.refs.dataGrid.props.dataKey;
-    const oldRows = component.refs.dataGrid.grid.windowRows;
+    const oldRows = component.refs.dataGrid.windowRows;
     const request = component.client.request.bind(component.client);
     const wideDescription = await request("describe", { name: "wide" });
     component.loadingIndicatorDelay = 10_000;
@@ -463,7 +465,7 @@ describe("SQLite View integration", () => {
     expect(component.loadingVisible).toBe(false);
     expect(component.getDisplayState().description).toBe(oldDescription);
     expect(component.refs.dataGrid.props.dataKey).toBe(oldDataKey);
-    expect(component.refs.dataGrid.grid.windowRows).toEqual(oldRows);
+    expect(component.refs.dataGrid.windowRows).toEqual(oldRows);
 
     releaseDescription();
     await switching;
@@ -518,7 +520,7 @@ describe("SQLite View integration", () => {
     ]);
     expect(component.history).toBeUndefined();
 
-    const queryGrid = component.refs.queryGrid.grid;
+    const queryGrid = component.refs.queryGrid;
     queryGrid.moveActiveSelectionTo(0, 1);
     lumine.commands.dispatch(queryGrid.element, "core:confirm");
     await conditionPromise(
