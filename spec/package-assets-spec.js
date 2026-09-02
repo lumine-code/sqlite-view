@@ -203,6 +203,12 @@ describe("sqlite-view package assets", () => {
     expect(css).not.toContain("--sqlite-view-accent-color:");
     expect(css).not.toContain("--sqlite-view-null-color:");
     expect(css).not.toContain(".canvas-grid-");
+    expect(css).toMatch(/\.sqlite-view \{[^}]*background: var\(--base-background-color\);/);
+    expect(css).toMatch(/\.sqlite-view-layout \{[^}]*width: 100%;/);
+    expect(css).toMatch(/\.sqlite-view-main \{[^}]*width: 100%;/);
+    expect(css).toMatch(
+      /\.sqlite-view-grid \{[^}]*width: 100%;[^}]*background: var\(--base-background-color\);/,
+    );
     expect(css).toContain("outline: 1px solid var(--data-grid-accent-color);");
     expect(css).toContain(".sqlite-view-object:not(.selected):hover");
     expect(css).toContain("border-radius: var(--component-border-radius);");
