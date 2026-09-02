@@ -96,14 +96,23 @@
 .sqlite-view-object-list {
   flex: 1 1 auto;
   margin: 0;
-  padding: 0.5em;
+  padding: 0;
   overflow: auto;
   outline: none;
 }
 
+.sqlite-view-object-group {
+  padding-bottom: 0.5em;
+}
+
 .sqlite-view-object-group-title {
-  padding: 0.35em 0.5em;
+  display: flex;
+  align-items: center;
+  min-height: var(--data-grid-header-height);
+  padding: 0 0.5em;
+  box-shadow: inset 0 -1px 0 var(--data-grid-border-color);
   color: var(--text-color-subtle);
+  background: var(--data-grid-header-color);
   font-size: 0.9em;
   font-weight: 600;
   text-transform: uppercase;
@@ -114,7 +123,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5em;
-  width: 100%;
+  width: calc(100% - 1em);
+  margin: 0.15em 0.5em 0;
   padding: 0.35em 0.5em;
   overflow: hidden;
   border: 0;

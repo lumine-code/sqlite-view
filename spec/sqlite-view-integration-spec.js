@@ -217,17 +217,26 @@ describe("SQLite View integration", () => {
     );
   });
 
-  it("overlays the sidebar resizer without leaving a gap before the grid", async () => {
+  it("aligns the schema and grid surfaces around an overlaid resizer", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await waitForDataView(item);
     const root = item.component.element;
     const sidebarRect = root.querySelector(".sqlite-view-sidebar").getBoundingClientRect();
     const resizerRect = root.querySelector(".sqlite-view-sidebar-resizer").getBoundingClientRect();
     const mainRect = root.querySelector(".sqlite-view-main").getBoundingClientRect();
+    const objectListRect = root.querySelector(".sqlite-view-object-list").getBoundingClientRect();
+    const groupTitleRect = root
+      .querySelector(".sqlite-view-object-group-title")
+      .getBoundingClientRect();
+    const headerHeight = Number.parseFloat(
+      getComputedStyle(root).getPropertyValue("--data-grid-header-height"),
+    );
 
     expect(Math.abs(sidebarRect.right - mainRect.left)).toBeLessThan(1);
     expect(resizerRect.left).toBeLessThan(sidebarRect.right);
     expect(resizerRect.right).toBeGreaterThan(mainRect.left);
+    expect(Math.abs(groupTitleRect.top - objectListRect.top)).toBeLessThan(1);
+    expect(Math.abs(groupTitleRect.height - headerHeight)).toBeLessThan(1);
   });
 
   it("keeps filter text editing native and presents Count without changing pages", async () => {

@@ -211,6 +211,11 @@ describe("sqlite-view package assets", () => {
     expect(css).toMatch(
       /\.sqlite-view-sidebar-resizer \{[^}]*justify-self: center;[^}]*width: 5px;/,
     );
+    expect(css).toMatch(/\.sqlite-view-object-list \{[^}]*padding: 0;/);
+    expect(css).toMatch(
+      /\.sqlite-view-object-group-title \{[^}]*min-height: var\(--data-grid-header-height\);[^}]*background: var\(--data-grid-header-color\);/,
+    );
+    expect(css).toMatch(/\.sqlite-view-object \{[^}]*width: calc\(100% - 1em\);/);
     expect(css).toMatch(/\.sqlite-view-main \{[^}]*width: 100%;/);
     expect(css).toMatch(
       /\.sqlite-view-grid \{[^}]*width: 100%;[^}]*background: var\(--base-background-color\);/,
