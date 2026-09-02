@@ -20,7 +20,7 @@ class GridHost {
   }
 
   mountGrid() {
-    const exported = require("./canvas-grid");
+    const exported = require("@lumine-code/canvas-grid");
     const CanvasGrid = exported.CanvasGrid || exported;
     this.grid = new CanvasGrid(this.gridProps());
     this.element.appendChild(this.grid.element);
@@ -30,6 +30,8 @@ class GridHost {
     const { columns, rows } = this.props;
     if (this.props.bounded) {
       return {
+        className: "sqlite-view-grid",
+        commandPrefix: "sqlite-view",
         columns,
         rowCount: rows.length,
         pageSize: PAGE_ROWS,
@@ -43,6 +45,8 @@ class GridHost {
       };
     }
     return {
+      className: "sqlite-view-grid",
+      commandPrefix: "sqlite-view",
       columns,
       pageSize: PAGE_ROWS,
       baseRow: this.props.baseRow,

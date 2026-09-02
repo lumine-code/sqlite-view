@@ -3,6 +3,10 @@
   --sqlite-view-header-height: 28px;
   --sqlite-view-accent-color: var(--accent-color);
   --sqlite-view-null-color: var(--text-color-subtle);
+  --canvas-grid-row-height: var(--sqlite-view-row-height);
+  --canvas-grid-header-height: var(--sqlite-view-header-height);
+  --canvas-grid-accent-color: var(--sqlite-view-accent-color);
+  --canvas-grid-null-color: var(--sqlite-view-null-color);
 
   width: 100%;
   height: 100%;
@@ -339,20 +343,27 @@
   font-family: var(--editor-font-family);
 }
 
-.sqlite-view-grid-sizer {
+.canvas-grid-sizer {
   position: absolute;
   top: 0;
   left: 0;
 }
 
-.sqlite-view-grid-canvas {
+.canvas-grid-viewport {
   position: sticky;
   top: 0;
   left: 0;
   display: block;
 }
 
-.sqlite-view-grid-live {
+.canvas-grid-canvas,
+.canvas-grid-overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.canvas-grid-live {
   position: absolute;
   width: 1px;
   height: 1px;

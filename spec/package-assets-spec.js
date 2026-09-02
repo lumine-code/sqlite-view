@@ -55,7 +55,13 @@ describe("sqlite-view package assets", () => {
     });
     expect(manifest.deserializers).toEqual({ SQLiteView: "deserialize" });
     expect(manifest.providedServices).toBeUndefined();
-    expect(Object.keys(manifest.dependencies)).toEqual(["@lumine-code/etch"]);
+    expect(Object.keys(manifest.dependencies)).toEqual([
+      "@lumine-code/canvas-grid",
+      "@lumine-code/etch",
+    ]);
+    expect(manifest.dependencies["@lumine-code/canvas-grid"]).toMatch(
+      /^github:lumine-code\/canvas-grid#[0-9a-f]{40}$/,
+    );
     expect(manifest.dependencies["@lumine-code/etch"]).toMatch(
       /^github:lumine-code\/etch#[0-9a-f]{40}$/,
     );
@@ -162,12 +168,13 @@ describe("sqlite-view package assets", () => {
   });
 
   it("names only commands implemented by the package", () => {
-    const source = filesBelow(path.join(root, "lib"))
-      .filter((filePath) => filePath.endsWith(".js"))
+    const packageSource = filesBelow(path.join(root, "lib"))
+      .filter((filePath) => /\.jsx?$/.test(filePath))
       .map((filePath) => fs.readFileSync(filePath, "utf8"))
       .join("\n");
+    const gridSource = fs.readFileSync(require.resolve("@lumine-code/canvas-grid"), "utf8");
     const implemented = new Set(
-      [...source.matchAll(/["'](sqlite-view:[a-z0-9-]+)["']/g)].map((match) => match[1]),
+      [...packageSource.matchAll(/["'](sqlite-view:[a-z0-9-]+)["']/g)].map((match) => match[1]),
     );
     const keymapCommands = Object.values(parse("keymaps/main.json")).flatMap(Object.values);
     const named = new Set([
@@ -175,8 +182,13 @@ describe("sqlite-view package assets", () => {
       ...keymapCommands.filter((command) => command.startsWith("sqlite-view:")),
     ]);
 
-    for (const command of named) expect(implemented.has(command)).toBe(true);
-    expect(source).not.toContain("sqlite-view:toggle");
+    for (const command of named) {
+      if (command.startsWith("sqlite-view:grid-")) {
+        expect(packageSource).toContain('commandPrefix: "sqlite-view"');
+        expect(gridSource).toContain(`\${prefix}:${command.slice("sqlite-view:".length)}`);
+      } else expect(implemented.has(command)).toBe(true);
+    }
+    expect(packageSource).not.toContain("sqlite-view:toggle");
   });
 
   it("publishes the canvas sizing and semantic colour hooks", () => {
@@ -186,7 +198,7 @@ describe("sqlite-view package assets", () => {
     expect(css).toContain("--sqlite-view-header-height:");
     expect(css).toContain("--sqlite-view-accent-color:");
     expect(css).toContain("--sqlite-view-null-color:");
-    expect(css).toContain(".sqlite-view-grid-canvas");
+    expect(css).toContain(".canvas-grid-canvas");
     expect(css).toContain(".sqlite-view-object:not(.selected):hover");
     expect(css).toContain("border-radius: var(--component-border-radius);");
     expect(css).toContain(".sqlite-view-query-error");
