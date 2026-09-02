@@ -52,7 +52,7 @@
     }
   },
   "dependencies": {
-    "@lumine-code/canvas-grid": "github:lumine-code/canvas-grid#161f4a85570b4c8cad72d41304d0e02bedd7068d",
+    "@lumine-code/canvas-grid": "github:lumine-code/canvas-grid#723daa22d3bdd9f5dc88ecb13c0b71bdc6792bbb",
     "@lumine-code/etch": "github:lumine-code/etch#caf7601cca3b105e502763391236bfaf86392e5a"
   },
   "devDependencies": {
