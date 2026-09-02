@@ -1029,13 +1029,15 @@ class SQLiteViewComponent {
           <label title="Show SQLite system and shadow objects">
             <input
               type="checkbox"
+              attributes={{
+                "aria-label": "Show SQLite system and shadow objects",
+              }}
               checked={this.showSystem}
               onChange={(event) => {
                 this.showSystem = event.target.checked;
                 this.loadCatalog();
               }}
             />
-            System
           </label>
         </div>
         <div className="sqlite-view-object-list" role="tree" tabIndex="0" ref="sidebar">

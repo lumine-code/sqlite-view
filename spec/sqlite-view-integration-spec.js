@@ -223,6 +223,7 @@ describe("SQLite View integration", () => {
     const root = item.component.element;
     const sidebarHeader = root.querySelector(".sqlite-view-sidebar-header");
     const dataControls = root.querySelector(".sqlite-view-data-controls");
+    const systemToggle = sidebarHeader.querySelector("input[type='checkbox']");
     await conditionPromise(
       () =>
         Math.abs(
@@ -246,6 +247,8 @@ describe("SQLite View integration", () => {
     expect(Math.abs(sidebarRect.right - mainRect.left)).toBeLessThan(1);
     expect(resizerRect.left).toBeLessThan(sidebarRect.right);
     expect(resizerRect.right).toBeGreaterThan(mainRect.left);
+    expect(sidebarHeader.textContent.trim()).toBe("Schema");
+    expect(systemToggle.getAttribute("aria-label")).toBe("Show SQLite system and shadow objects");
     expect(
       Math.abs(
         sidebarHeader.getBoundingClientRect().height - dataControls.getBoundingClientRect().height,
