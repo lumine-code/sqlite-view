@@ -74,7 +74,30 @@ class SQLiteViewComponent {
         "core:confirm": schemaCommand(() => this.confirmSchema()),
       }),
     );
+    this.observeSectionHeaderHeight();
     this.loadCatalog();
+  }
+
+  observeSectionHeaderHeight() {
+    const ResizeObserverClass =
+      this.element.ownerDocument.defaultView?.ResizeObserver ?? globalThis.ResizeObserver;
+    if (typeof ResizeObserverClass !== "function" || !this.refs.dataControls) return;
+    this.headerResizeObserver = new ResizeObserverClass(() => this.syncSectionHeaderHeight());
+    this.headerResizeObserver.observe(this.refs.dataControls);
+    this.subscriptions.add(
+      new Disposable(() => {
+        this.headerResizeObserver?.disconnect();
+        this.headerResizeObserver = null;
+      }),
+    );
+    this.syncSectionHeaderHeight();
+  }
+
+  syncSectionHeaderHeight() {
+    const height = this.refs.dataControls?.getBoundingClientRect().height || 0;
+    if (height > 0 && this.refs.sidebarHeader) {
+      this.refs.sidebarHeader.style.height = `${height}px`;
+    }
   }
 
   update(props) {
@@ -1001,7 +1024,7 @@ class SQLiteViewComponent {
     const groups = groupObjects(this.catalog?.objects || []);
     return (
       <aside className={`sqlite-view-sidebar ${this.mode === "query" ? "is-hidden" : ""}`}>
-        <div className="sqlite-view-sidebar-header">
+        <div className="sqlite-view-sidebar-header" ref="sidebarHeader">
           <strong>Schema</strong>
           <label title="Show SQLite system and shadow objects">
             <input
@@ -1096,7 +1119,7 @@ class SQLiteViewComponent {
     const lastPage = pages.at(-1);
     return (
       <section className={`sqlite-view-data ${this.mode === "data" ? "" : "is-hidden"}`}>
-        <div className="sqlite-view-data-controls">
+        <div className="sqlite-view-data-controls" ref="dataControls">
           <SelectBox
             ref="sortColumn"
             ariaLabel="Sort column"

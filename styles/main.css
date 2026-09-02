@@ -73,9 +73,12 @@
 
 .sqlite-view-sidebar-header {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: 0.5em;
+  box-sizing: border-box;
+  min-height: calc(var(--select-box-min-height, 28px) + 0.8em + 1px);
   padding: 0.5em;
   border-bottom: 1px solid var(--base-border-color);
 }
@@ -199,6 +202,11 @@
 .sqlite-view-data-controls,
 .sqlite-view-filters {
   flex-wrap: wrap;
+}
+
+.sqlite-view-data-controls {
+  box-sizing: border-box;
+  min-height: calc(var(--select-box-min-height, 28px) + 0.8em + 1px);
 }
 
 .sqlite-view-data-controls input,

@@ -221,6 +221,16 @@ describe("SQLite View integration", () => {
     const item = await lumine.workspace.open(files.databasePath);
     await waitForDataView(item);
     const root = item.component.element;
+    const sidebarHeader = root.querySelector(".sqlite-view-sidebar-header");
+    const dataControls = root.querySelector(".sqlite-view-data-controls");
+    await conditionPromise(
+      () =>
+        Math.abs(
+          sidebarHeader.getBoundingClientRect().height -
+            dataControls.getBoundingClientRect().height,
+        ) < 1,
+      "matching SQLite section header heights",
+    );
     const sidebarRect = root.querySelector(".sqlite-view-sidebar").getBoundingClientRect();
     const resizerRect = root.querySelector(".sqlite-view-sidebar-resizer").getBoundingClientRect();
     const mainRect = root.querySelector(".sqlite-view-main").getBoundingClientRect();
@@ -228,6 +238,7 @@ describe("SQLite View integration", () => {
     const groupTitleRect = root
       .querySelector(".sqlite-view-object-group-title")
       .getBoundingClientRect();
+    const gridRect = root.querySelector(".sqlite-view-grid").getBoundingClientRect();
     const headerHeight = Number.parseFloat(
       getComputedStyle(root).getPropertyValue("--data-grid-header-height"),
     );
@@ -235,7 +246,13 @@ describe("SQLite View integration", () => {
     expect(Math.abs(sidebarRect.right - mainRect.left)).toBeLessThan(1);
     expect(resizerRect.left).toBeLessThan(sidebarRect.right);
     expect(resizerRect.right).toBeGreaterThan(mainRect.left);
+    expect(
+      Math.abs(
+        sidebarHeader.getBoundingClientRect().height - dataControls.getBoundingClientRect().height,
+      ),
+    ).toBeLessThan(1);
     expect(Math.abs(groupTitleRect.top - objectListRect.top)).toBeLessThan(1);
+    expect(Math.abs(groupTitleRect.top - gridRect.top)).toBeLessThan(1);
     expect(Math.abs(groupTitleRect.height - headerHeight)).toBeLessThan(1);
   });
 

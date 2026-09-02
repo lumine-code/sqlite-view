@@ -216,6 +216,12 @@ describe("sqlite-view package assets", () => {
       /\.sqlite-view-object-group-title \{[^}]*min-height: var\(--data-grid-header-height\);[^}]*background: var\(--data-grid-header-color\);/,
     );
     expect(css).toMatch(/\.sqlite-view-object \{[^}]*width: calc\(100% - 1em\);/);
+    expect(css).toMatch(
+      /\.sqlite-view-sidebar-header \{[^}]*min-height: calc\(var\(--select-box-min-height, 28px\) \+ 0\.8em \+ 1px\);/,
+    );
+    expect(css).toMatch(
+      /\.sqlite-view-data-controls \{[^}]*min-height: calc\(var\(--select-box-min-height, 28px\) \+ 0\.8em \+ 1px\);/,
+    );
     expect(css).toMatch(/\.sqlite-view-main \{[^}]*width: 100%;/);
     expect(css).toMatch(
       /\.sqlite-view-grid \{[^}]*width: 100%;[^}]*background: var\(--base-background-color\);/,
