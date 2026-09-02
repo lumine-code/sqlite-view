@@ -227,6 +227,8 @@ describe("sqlite-view package assets", () => {
       /\.sqlite-view-grid \{[^}]*width: 100%;[^}]*background: var\(--base-background-color\);/,
     );
     expect(css).toContain("outline: 1px solid var(--data-grid-accent-color);");
+    expect(css).toContain(".sqlite-view-object-list:focus-visible");
+    expect(css).not.toContain(".sqlite-view-object-list:focus,");
     expect(css).toContain(".sqlite-view-object:not(.selected):hover");
     expect(css).toContain("border-radius: var(--component-border-radius);");
     expect(css).toContain(".sqlite-view-query-error");

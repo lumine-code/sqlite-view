@@ -90,7 +90,7 @@
   white-space: nowrap;
 }
 
-.sqlite-view-object-list:focus,
+.sqlite-view-object-list:focus-visible,
 .sqlite-view-grid:focus {
   outline: 1px solid var(--data-grid-accent-color);
   outline-offset: -1px;
