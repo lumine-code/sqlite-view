@@ -97,7 +97,8 @@ describe("SQLite View integration", () => {
         "SQLite child processes to exit",
       );
     }
-    fs.rmSync(files.directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
+    await lumine.fileWatchClient.settlePendingTeardown();
+    fs.rmSync(files.directory, { recursive: true, force: true });
   });
 
   it("claims only supported files with a SQLite header", async () => {

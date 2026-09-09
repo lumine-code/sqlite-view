@@ -13,9 +13,11 @@ describe("SQLite file state", () => {
     view = new SQLiteView(filePath);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    const observation = view.file;
     view.destroy();
-    fs.rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    await observation.closed;
+    fs.rmSync(directory, { recursive: true, force: true });
   });
 
   it("reports removed and returns to unmodified when the file is available", () => {
