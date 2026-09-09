@@ -23,10 +23,12 @@ describe("SQLite file state", () => {
     view.onDidChangeFileState((state) => states.push(state));
     expect(view.getFileState()).toBe(lumine.FileState.UNMODIFIED);
 
-    view.file.emitter.emit("did-delete");
+    fs.unlinkSync(filePath);
+    view.reconcileFile();
     expect(view.getFileState()).toBe(lumine.FileState.REMOVED);
 
-    advanceClock(1000);
+    fs.writeFileSync(filePath, "SQLite format 3\0");
+    view.reconcileFile();
     expect(view.getFileState()).toBe(lumine.FileState.UNMODIFIED);
     expect(states).toEqual([lumine.FileState.REMOVED, lumine.FileState.UNMODIFIED]);
   });
