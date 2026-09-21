@@ -35,14 +35,13 @@ function menuCommands(items, result = []) {
 }
 
 describe("sqlite-view package assets", () => {
-  it("uses the canonical package identity and eager activation", () => {
+  it("uses the canonical package identity and JavaScript bootstrap", () => {
     expect(manifest.name).toBe("sqlite-view");
     expect(manifest.author).toBe("lumine-code");
     expect(manifest.description).toBe(DESCRIPTION);
     expect(manifest.repository).toBe("https://github.com/lumine-code/sqlite-view");
     expect(manifest.bugs.url).toBe("https://github.com/lumine-code/sqlite-view/issues");
     expect(manifest.engines).toEqual({ lumine: "^1.0.0" });
-    expect(manifest.activationCommands).toBeUndefined();
     expect(manifest.configSchema).toEqual({
       additionalExtensions: {
         title: "Additional Database Extensions",

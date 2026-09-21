@@ -1,12 +1,12 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const SQLiteView = require("../lib/sqlite-view");
 
 describe("SQLite file state", () => {
   let directory, filePath, view;
 
   beforeEach(() => {
+    const SQLiteView = require("../lib/sqlite-view");
     directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sqlite-state-spec-")));
     filePath = path.join(directory, "database.sqlite");
     fs.writeFileSync(filePath, "SQLite format 3\0");

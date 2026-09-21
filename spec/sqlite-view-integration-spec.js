@@ -2,10 +2,6 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { DatabaseSync } = require("node:sqlite");
-const SQLiteView = require("../lib/sqlite-view");
-const main = require("../lib/main");
-const { BrowseClient } = require("../lib/browse-client");
-const { splitStatements, statementAt } = require("../lib/sql-statement");
 
 function fixture() {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "sqlite-view-ui-spec-"));
@@ -36,6 +32,8 @@ function fixture() {
 describe("SQLite View integration", () => {
   let files;
   let timeout;
+  let SQLiteView;
+  let main;
 
   async function waitForDataView(item, message = "the SQLite view") {
     await conditionPromise(() => {
@@ -78,7 +76,9 @@ describe("SQLite View integration", () => {
     jasmine.useRealClock();
     jasmine.attachToDOM(lumine.views.getView(lumine.workspace));
     files = fixture();
-    await lumine.packages.activatePackage("sqlite-view");
+    const pack = await lumine.packages.activatePackage("sqlite-view");
+    main = pack.mainModule;
+    SQLiteView = require("../lib/sqlite-view");
   });
 
   afterEach(async () => {
@@ -677,6 +677,12 @@ describe("SQLite View integration", () => {
 
 describe("SQL statement selection", () => {
   const sql = "SELECT ';' AS semicolon; -- ;\nSELECT 2 /* ; */; SELECT 3";
+  let splitStatements;
+  let statementAt;
+
+  beforeEach(() => {
+    ({ splitStatements, statementAt } = require("../lib/sql-statement"));
+  });
 
   it("does not split semicolons inside strings or comments", () => {
     expect(splitStatements(sql).map((entry) => entry.text.trim())).toEqual([
@@ -697,6 +703,12 @@ describe("SQL statement selection", () => {
 });
 
 describe("browse request coordination", () => {
+  let BrowseClient;
+
+  beforeEach(() => {
+    ({ BrowseClient } = require("../lib/browse-client"));
+  });
+
   it("replaces queued viewport work with the newest request", async () => {
     const client = Object.create(BrowseClient.prototype);
     client.destroyed = false;

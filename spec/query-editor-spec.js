@@ -1,13 +1,13 @@
-const QueryEditor = require("../lib/query-editor");
-
 describe("SQLite query editor", () => {
   let component;
   let languageSqlWasActive;
+  let QueryEditor;
 
   beforeEach(async () => {
     languageSqlWasActive = lumine.packages.isPackageActive("language-sql");
     await lumine.packages.activatePackage("language-sql");
     await lumine.packages.activatePackage("sqlite-view");
+    QueryEditor = require("../lib/query-editor");
   });
 
   afterEach(async () => {
