@@ -20,9 +20,6 @@
   "engines": {
     "lumine": "^1.0.0"
   },
-  "backgroundTips": [
-    "Run the current database query with {{ 'sqlite-view:execute-query' | keystroke }}"
-  ],
   "main": "./lib/main",
   "files": [
     "keymaps",
@@ -49,6 +46,13 @@
         "type": "string"
       },
       "default": []
+    }
+  },
+  "providedServices": {
+    "background-tips.provider": {
+      "versions": {
+        "1.0.0": "provideBackgroundTips"
+      }
     }
   },
   "dependencies": {

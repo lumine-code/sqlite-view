@@ -53,7 +53,9 @@ describe("sqlite-view package assets", () => {
       },
     });
     expect(manifest.deserializers).toEqual({ SQLiteView: "deserialize" });
-    expect(manifest.providedServices).toBeUndefined();
+    expect(manifest.providedServices["background-tips.provider"].versions["1.0.0"]).toBe(
+      "provideBackgroundTips",
+    );
     expect(Object.keys(manifest.dependencies)).toEqual([
       "@lumine-code/canvas-grid",
       "@lumine-code/etch",
@@ -65,11 +67,10 @@ describe("sqlite-view package assets", () => {
       /^github:lumine-code\/etch#[0-9a-f]{40}$/,
     );
 
-    const keys = Object.keys(manifest);
-    expect(keys[keys.indexOf("engines") + 1]).toBe("backgroundTips");
-    expect(manifest.backgroundTips).toEqual([
-      "Run the current database query with {{ 'sqlite-view:execute-query' | keystroke }}",
-    ]);
+    expect(require("../lib/main").provideBackgroundTips()).toEqual({
+      packageName: "sqlite-view",
+      tips: ["Run the current database query with {{ 'sqlite-view:execute-query' | keystroke }}"],
+    });
   });
 
   it("keeps the README and package metadata descriptions identical", () => {
