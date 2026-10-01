@@ -23,15 +23,15 @@ describe("SQLite file state", () => {
   it("reports removed and returns to unmodified when the file is available", () => {
     const states = [];
     view.onDidChangeFileState((state) => states.push(state));
-    expect(view.getFileState()).toBe(lumine.FileState.UNMODIFIED);
+    expect(view.getFileState()).toBe("unmodified");
 
     fs.unlinkSync(filePath);
     view.reconcileFile();
-    expect(view.getFileState()).toBe(lumine.FileState.REMOVED);
+    expect(view.getFileState()).toBe("removed");
 
     fs.writeFileSync(filePath, "SQLite format 3\0");
     view.reconcileFile();
-    expect(view.getFileState()).toBe(lumine.FileState.UNMODIFIED);
-    expect(states).toEqual([lumine.FileState.REMOVED, lumine.FileState.UNMODIFIED]);
+    expect(view.getFileState()).toBe("unmodified");
+    expect(states).toEqual(["removed", "unmodified"]);
   });
 });
