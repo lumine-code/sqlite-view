@@ -230,7 +230,7 @@ describe("sqlite-view package assets", () => {
     expect(css).toContain(".sqlite-view-object-list:focus-visible");
     expect(css).not.toContain(".sqlite-view-object-list:focus,");
     expect(css).toContain(".sqlite-view-object:not(.selected):hover");
-    expect(css).toContain("border-radius: var(--component-border-radius);");
+    expect(css).toContain("border-radius: var(--ui-border-radius);");
     expect(css).toContain(".sqlite-view-query-error");
     expect(css).toContain(".sqlite-view-layout.is-query-mode");
     expect(css).toContain(".sqlite-view-refresh");

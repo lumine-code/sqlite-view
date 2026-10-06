@@ -131,7 +131,7 @@
   padding: 0.35em 0.5em;
   overflow: hidden;
   border: 0;
-  border-radius: var(--component-border-radius);
+  border-radius: var(--ui-border-radius);
   color: inherit;
   background: transparent;
   cursor: default;
@@ -230,7 +230,7 @@
   padding: 0.2em 0.5em;
   overflow: hidden;
   border: 1px solid var(--base-border-color);
-  border-radius: var(--component-border-radius);
+  border-radius: var(--ui-border-radius);
   color: var(--text-color);
   background: var(--background-color-highlight);
   text-overflow: ellipsis;

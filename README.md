@@ -45,7 +45,7 @@ Canvas-backed tables share the editor's `--data-grid-*` theme tokens. Adjust the
 :root {
   --data-grid-row-height: 22px;
   --data-grid-header-height: 26px;
-  --data-grid-accent-color: var(--accent-color);
+  --data-grid-accent-color: var(--accent-indicator-color);
   --data-grid-null-color: var(--text-color-subtle);
 }
 ```
