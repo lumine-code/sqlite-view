@@ -307,6 +307,26 @@ describe("SQLite engine", () => {
     expect(Buffer.from(detail.base64, "base64").length).toBe(128);
   });
 
+  for (const View of [DataView, Uint16Array]) {
+    it(`uses every byte of an encoded ${View.name} BLOB filter in a real database`, () => {
+      const engine = new BrowseEngine({ path: fixture.filePath });
+      engines.push(engine);
+      const storage = new ArrayBuffer(132);
+      new Uint8Array(storage).fill(7, 2, 130);
+      const value = new View(storage, 2, View === DataView ? 128 : 64);
+      const filterValue = JSON.parse(JSON.stringify(encodeScalar(value)));
+      const page = engine.page({
+        revision: engine.revision,
+        source: { schema: "main", name: "items" },
+        columnIds: [0, 3],
+        filters: [{ columnId: 3, op: "eq", value: filterValue }],
+        direction: "first",
+      });
+      expect(page.rows.map((row) => row.cells[0][1])).toEqual(["2"]);
+      expect(page.rows[0]?.cells[1]).toEqual(["b", "128", "07070707070707070707070707070707"]);
+    });
+  }
+
   it("uses a composite primary key for WITHOUT ROWID keyset pages", () => {
     const engine = new BrowseEngine({ path: fixture.filePath });
     engines.push(engine);
