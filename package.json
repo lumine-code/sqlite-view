@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "@lumine-code/canvas-grid": "github:lumine-code/canvas-grid#954d418c21c91aac7677008fa70433e157ab77b1",
-    "@lumine-code/etch": "github:lumine-code/etch#a823441dcf10e786f36915f88422fd0c95d33374"
+    "@lumine-code/etch": "github:lumine-code/etch#730d47e10f6d655c010f2880186a3a60ed0c73b0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
