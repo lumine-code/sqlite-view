@@ -48,9 +48,16 @@ jobs:
   integration:
     # Run the Jasmine specs inside a real Lumine build; they exercise workspace
     # openers, pane items, command dispatch, canvas focus, and the Node SQLite API.
-    name: Lumine integration specs
-    runs-on: ubuntu-latest
+    name: Lumine integration specs on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
     env:
       LUMINE_JASMINE_REPORTER: list
     steps:
@@ -67,6 +74,7 @@ jobs:
           cache: npm
           cache-dependency-path: lumine/package-lock.json
       - name: Install Linux build and headless-display dependencies
+        if: runner.os == 'Linux'
         run: |
           # A third-party repository on the runner image answering 403 must not
           # fail the job: the lists this actually needs still fetched, and the
@@ -92,4 +100,14 @@ jobs:
       - name: Run the Jasmine spec suite
         working-directory: lumine
         timeout-minutes: 20
-        run: xvfb-run --auto-servernum npm start -- --test ../sqlite-view/spec
+        run: |
+          export LUMINE_HOME="$RUNNER_TEMP/sqlite-view-home"
+          export TEMP="$RUNNER_TEMP/sqlite-view-temp"
+          export TMP="$TEMP"
+          export TMPDIR="$TEMP"
+          mkdir -p "$LUMINE_HOME" "$TEMP"
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run --auto-servernum npm start -- --test ../sqlite-view/spec
+          else
+            npm start -- --test ../sqlite-view/spec
+          fi

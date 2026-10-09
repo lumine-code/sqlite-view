@@ -357,24 +357,32 @@ class SQLiteViewComponent {
   }
 
   applyPageTile(page, result, tileIndex) {
-    if (result.rows.length < page.rows.length) {
-      page.rows.length = result.rows.length;
-      for (const key of [
-        "before",
-        "after",
-        "hasPrevious",
-        "hasNext",
-        "pagination",
-        "stable",
-        "degraded",
-      ]) {
+    const nextStart = BigInt(result.before?.offset || 0);
+    const previousStart = BigInt(page.before?.offset || 0);
+    // Merge only the intersection of the loaded row windows. A wider tile
+    // can omit leading rows; a narrower tile must not grow the existing page.
+    const sourceOffset = nextStart < previousStart ? Number(previousStart - nextStart) : 0;
+    if (nextStart > previousStart) {
+      page.rows.splice(0, Number(nextStart - previousStart));
+      page.before = result.before;
+      page.hasPrevious = result.hasPrevious;
+    }
+    const availableRows = Math.max(0, result.rows.length - sourceOffset);
+    const shortenedAtEnd = availableRows < page.rows.length;
+    if (shortenedAtEnd) {
+      page.rows.length = availableRows;
+      page.after = result.after;
+      page.hasNext = result.hasNext;
+    }
+    if (nextStart > previousStart || shortenedAtEnd) {
+      for (const key of ["pagination", "stable", "degraded"]) {
         page[key] = result[key];
       }
     }
     const start = tileIndex * COLUMN_TILE;
     for (let rowIndex = 0; rowIndex < page.rows.length; rowIndex++) {
       const target = page.rows[rowIndex];
-      const source = result.rows[rowIndex];
+      const source = result.rows[rowIndex + sourceOffset];
       if (!source) continue;
       target.rowKey = source.rowKey;
       for (let column = 0; column < source.cells.length; column++) {
