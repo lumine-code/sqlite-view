@@ -234,10 +234,12 @@ class SQLiteViewComponent {
   }
 
   async loadCatalog(message = "Reading schema…") {
+    this.retireBrowseOperations();
     const generation = ++this.pageGeneration;
     this.startLoading(message);
     this.error = null;
     await this.patch();
+    if (this.destroyed || generation !== this.pageGeneration) return;
     try {
       const catalog = await this.client.request("catalog", {
         includeInternal: this.showSystem,
@@ -249,6 +251,7 @@ class SQLiteViewComponent {
       const firstDataObject = catalog.objects.find((object) => isDataObject(object));
       const firstObject = selectable || firstDataObject || catalog.objects[0];
       await this.patch();
+      if (this.destroyed || generation !== this.pageGeneration) return;
       if (firstObject) {
         await this.selectObject(firstObject.name, { continueLoading: true });
       } else {
@@ -272,6 +275,7 @@ class SQLiteViewComponent {
   async selectObject(name, { continueLoading = false } = {}) {
     const object = this.catalog?.objects.find((entry) => entry.name === name);
     if (!object) return;
+    this.retireBrowseOperations();
     this.preserveVisibleTable();
     const generation = ++this.pageGeneration;
     this.selectedName = name;
@@ -285,6 +289,7 @@ class SQLiteViewComponent {
     this.startLoading(`Loading ${name}…`, { continueExisting: continueLoading });
     this.dataKey += 1;
     await this.patch();
+    if (this.destroyed || generation !== this.pageGeneration) return;
     if (!isDataObject(object)) {
       this.mode = "structure";
       this.description = object;
@@ -497,8 +502,10 @@ class SQLiteViewComponent {
   }
 
   async loadFirstPage(generation = ++this.pageGeneration, { continueLoading = false } = {}) {
+    this.retireBrowseOperations();
     this.startLoading("Loading rows…", { continueExisting: continueLoading });
     await this.patch();
+    if (this.destroyed || generation !== this.pageGeneration) return;
     try {
       const page = await this.requestPage("first", null, generation);
       if (!page || generation !== this.pageGeneration) return;
@@ -683,21 +690,30 @@ class SQLiteViewComponent {
   }
 
   async countRows({ goToEnd = false } = {}) {
-    if (!this.description || this.counting || this.loading) return;
+    if (this.destroyed || !this.description || this.counting || this.loading) return;
+    const request = { generation: this.pageGeneration };
+    this.countRequest = request;
+    const isCurrent = () =>
+      !this.destroyed &&
+      this.countRequest === request &&
+      request.generation === this.pageGeneration;
     this.error = null;
     this.counting = true;
     this.status = "Counting rows…";
     await this.patch();
+    if (!isCurrent()) return;
     try {
       const result = await this.client.runCount({
         source: { schema: "main", name: this.selectedName },
         filters: this.filters,
       });
+      if (!isCurrent()) return;
       this.totalRows = result.count;
       if (goToEnd) {
         const generation = ++this.pageGeneration;
+        request.generation = generation;
         const last = await this.requestPage("last", null, generation, result.count);
-        if (generation !== this.pageGeneration) return;
+        if (!isCurrent()) return;
         this.currentPage = last;
         this.previousPage = null;
         this.nextPage = null;
@@ -706,12 +722,24 @@ class SQLiteViewComponent {
       this.dataKey += 1;
       this.updatePageStatus();
     } catch (error) {
+      if (!isCurrent()) return;
       if (error.code === "CANCELLED") this.status = "Count cancelled.";
       else this.setError(error);
     } finally {
-      this.counting = false;
-      await this.patch();
+      if (this.countRequest === request) {
+        this.countRequest = null;
+        this.counting = false;
+        await this.patch();
+      }
     }
+  }
+
+  retireBrowseOperations() {
+    const count = this.countRequest;
+    this.countRequest = null;
+    this.cellRequest = null;
+    this.counting = false;
+    if (count) this.client.cancelCount();
   }
 
   setMode(mode) {
@@ -790,8 +818,9 @@ class SQLiteViewComponent {
 
   cancelQuery() {
     const queryCancelled = this.client.cancelQuery();
-    const countCancelled = this.client.cancelCount();
+    const countCancelled = this.client.cancelCount() || Boolean(this.countRequest);
     if (!queryCancelled && !countCancelled) return;
+    this.countRequest = null;
     this.queryRunning = false;
     this.counting = false;
     if (queryCancelled) {
@@ -803,16 +832,22 @@ class SQLiteViewComponent {
   }
 
   async showCell({ columnDefinition, record }) {
-    if (!record?.rowKey || !this.description || this.loading) return;
+    if (this.destroyed || !record?.rowKey || !this.description || this.loading) return;
+    const request = { generation: this.pageGeneration };
+    this.cellRequest = request;
+    const isCurrent = () =>
+      !this.destroyed && this.cellRequest === request && request.generation === this.pageGeneration;
     try {
-      this.cellDetail = await this.client.request("cell", {
+      const detail = await this.client.request("cell", {
         source: { schema: "main", name: this.selectedName },
         rowKey: record.rowKey,
         columnId: columnDefinition.key,
       });
+      if (!isCurrent()) return;
+      this.cellDetail = detail;
       await this.patch();
     } catch (error) {
-      this.setError(error);
+      if (isCurrent()) this.setError(error);
     }
   }
 
@@ -822,6 +857,7 @@ class SQLiteViewComponent {
   }
 
   closeCellDetail() {
+    this.cellRequest = null;
     this.cellDetail = null;
     if (this.transitionSnapshot) this.transitionSnapshot.cellDetail = null;
     this.patch();
@@ -881,6 +917,8 @@ class SQLiteViewComponent {
   }
 
   handleFileDeleted() {
+    this.retireBrowseOperations();
+    this.pageGeneration += 1;
     if (this.queryRows.length) this.queryStale = true;
     this.fileAvailable = false;
     this.client.suspend();
@@ -1047,8 +1085,10 @@ class SQLiteViewComponent {
                 className="sqlite-view-object-group-title"
                 role="treeitem"
                 tabIndex="-1"
-                data-group={label}
-                aria-expanded={this.collapsedGroups.has(label) ? "false" : "true"}
+                attributes={{
+                  "data-group": label,
+                  "aria-expanded": this.collapsedGroups.has(label) ? "false" : "true",
+                }}
               >
                 {label}
               </div>
@@ -1060,8 +1100,10 @@ class SQLiteViewComponent {
                       className={`sqlite-view-object ${object.name === this.selectedName ? "selected" : ""}`}
                       role="treeitem"
                       tabIndex="-1"
-                      data-object={object.name}
-                      aria-selected={object.name === this.selectedName ? "true" : "false"}
+                      attributes={{
+                        "data-object": object.name,
+                        "aria-selected": object.name === this.selectedName ? "true" : "false",
+                      }}
                       onClick={() => this.selectObject(object.name)}
                     >
                       <span>{object.name}</span>
@@ -1423,10 +1465,12 @@ class SQLiteViewComponent {
             ref="sidebarResizer"
             role="separator"
             tabIndex="0"
-            aria-orientation="vertical"
-            aria-valuemin="180"
-            aria-valuemax="600"
-            aria-valuenow={String(this.sidebarWidth)}
+            attributes={{
+              "aria-orientation": "vertical",
+              "aria-valuemin": "180",
+              "aria-valuemax": "600",
+              "aria-valuenow": String(this.sidebarWidth),
+            }}
             onMouseDown={(event) => this.startSidebarResize(event)}
             onKeyDown={(event) => this.resizeSidebarWithKeyboard(event)}
           />
@@ -1454,6 +1498,8 @@ class SQLiteViewComponent {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.retireBrowseOperations();
+    this.pageGeneration += 1;
     cancelAnimationFrame(this.filterFocusFrame);
     clearTimeout(this.suspendTimer);
     this.stopLoading();
