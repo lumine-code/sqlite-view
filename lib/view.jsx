@@ -278,6 +278,15 @@ class SQLiteViewComponent {
     this.retireBrowseOperations();
     this.preserveVisibleTable();
     const generation = ++this.pageGeneration;
+    if (name !== this.selectedName) {
+      this.sort = null;
+      this.sortColumnId = "";
+      this.sortDirection = "none";
+      this.filters = [];
+      this.filterColumnId = "";
+      this.filterValue = "";
+      this.visibleColumns = null;
+    }
     this.selectedName = name;
     this.description = null;
     this.currentPage = null;

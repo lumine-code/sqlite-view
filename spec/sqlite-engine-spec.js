@@ -59,7 +59,7 @@ function createFixture() {
 
 function forkTask(taskPath, args, onEvent = () => {}) {
   return new Promise((resolve, reject) => {
-    const child = childProcess.fork(taskPath, [], { silent: true });
+    const child = childProcess.fork(taskPath, [], { silent: true, windowsHide: true });
     const timeout = setTimeout(() => {
       child.kill();
       reject(new Error(`Timed out waiting for ${path.basename(taskPath)}.`));
@@ -90,7 +90,7 @@ function forkTask(taskPath, args, onEvent = () => {}) {
 
 function cancelLongQuery(filePath) {
   return new Promise((resolve, reject) => {
-    const child = childProcess.fork(queryTaskPath, [], { silent: true });
+    const child = childProcess.fork(queryTaskPath, [], { silent: true, windowsHide: true });
     const startedAt = Date.now();
     const timeout = setTimeout(() => {
       child.kill();

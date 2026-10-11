@@ -31,7 +31,7 @@ Commands available in `lumine-workspace`:
 
 The package opens databases read-only. Browsing, sorting, filtering, and running a query never write to the file; statements that could modify the database are refused before they run.
 
-Selecting a table or view loads its columns and the first page of rows. SQLite's own `sqlite_*` objects stay hidden until the system-object toggle is enabled, and refreshing re-reads both the schema and the visible result after another program changes the file.
+Selecting a table or view loads its columns and the first page of rows, clearing the previous object's sort, filters, and horizontal position. SQLite's own `sqlite_*` objects stay hidden until the system-object toggle is enabled, and refreshing re-reads both the schema and the visible result after another program changes the file.
 
 The grid keeps one active cell and rectangular selections. Navigation scrolls that cell into view without materializing rows outside the bounded page cache, and copying emits tab-separated rows without formatting values into HTML.
 

@@ -44,6 +44,10 @@ jobs:
         run: npm run lint
       - name: Check formatting
         run: npm run format:check
+      - name: Audit dependencies
+        run: npm audit --audit-level=moderate
+      - name: Check package contents
+        run: npm pack --dry-run
 
   integration:
     # Run the Jasmine specs inside a real Lumine build; they exercise workspace
@@ -60,7 +64,17 @@ jobs:
         shell: bash
     env:
       LUMINE_JASMINE_REPORTER: list
+      LUMINE_DISABLE_SHELLING_OUT_FOR_ENVIRONMENT: "true"
+      LUMINE_HOME: ${{ github.workspace }}/sqlite-spec-home
+      HOME: ${{ github.workspace }}/sqlite-spec-home
+      USERPROFILE: ${{ github.workspace }}/sqlite-spec-home
+      XDG_CONFIG_HOME: ${{ github.workspace }}/sqlite-spec-home
+      TEMP: ${{ github.workspace }}/sqlite-spec-tmp
+      TMP: ${{ github.workspace }}/sqlite-spec-tmp
+      TMPDIR: ${{ github.workspace }}/sqlite-spec-tmp
     steps:
+      - name: Create the private home and temporary directory
+        run: mkdir -p "$TEMP" "$LUMINE_HOME/electronUserData"
       - uses: actions/checkout@v7
         with:
           path: sqlite-view
@@ -101,11 +115,6 @@ jobs:
         working-directory: lumine
         timeout-minutes: 20
         run: |
-          export LUMINE_HOME="$RUNNER_TEMP/sqlite-view-home"
-          export TEMP="$RUNNER_TEMP/sqlite-view-temp"
-          export TMP="$TEMP"
-          export TMPDIR="$TEMP"
-          mkdir -p "$LUMINE_HOME" "$TEMP"
           if [ "$RUNNER_OS" = Linux ]; then
             xvfb-run --auto-servernum npm start -- --test ../sqlite-view/spec
           else
