@@ -175,6 +175,66 @@ describe("SQLite View integration", () => {
     expect(state.viewState).not.toEqual(jasmine.objectContaining({ history: jasmine.anything() }));
   });
 
+  it("copies the visible query result and independent state while its sibling closes", async () => {
+    const original = await lumine.workspace.open(files.databasePath);
+    await waitForDataView(original);
+    original.component.mode = "query";
+    original.component.queryText = "SELECT id, name FROM records LIMIT 2";
+    original.component.setSidebarWidth(320, false);
+    await original.component.patch();
+    original.component.executeQuery();
+    await waitForQueryView(original, 2);
+    const rows = structuredClone(original.component.queryRows);
+    const { item: copy } = await lumine.workspace.copyPaneItem(original, {
+      splitDirection: "right",
+    });
+    await waitForQueryView(copy, 2);
+    await conditionPromise(() => !copy.component.pendingCopyState, "restored query presentation");
+    expect(copy.component.queryRows).toEqual(rows);
+    expect(copy.component.queryRows).not.toBe(original.component.queryRows);
+    expect(copy.component.client).not.toBe(original.component.client);
+    expect(copy.component.sidebarWidth).toBe(320);
+    original.destroy();
+    expect(copy.destroyed).toBe(false);
+    expect(copy.component.queryRows).toEqual(rows);
+    copy.component.queryText = "DELETE FROM records";
+    await copy.component.patch();
+    copy.component.executeQuery();
+    await conditionPromise(
+      () => !copy.component.queryRunning && copy.component.queryError,
+      "readonly query refusal",
+    );
+    expect(copy.component.queryError.code).toBe("QUERY_NOT_READ_ONLY");
+    const database = new DatabaseSync(files.databasePath, { readOnly: true });
+    try {
+      expect(database.prepare("SELECT count(*) AS count FROM records").get().count).toBe(300);
+    } finally {
+      database.close();
+    }
+  });
+
+  it("copies a later browse page without sharing page caches or navigation", async () => {
+    const original = await lumine.workspace.open(files.databasePath);
+    await waitForDataView(original);
+    await original.component.next();
+    await waitForDataView(original);
+    const offset = original.component.currentPage.before.offset;
+    expect(BigInt(offset)).toBeGreaterThan(0n);
+    const { item: copy } = await lumine.workspace.copyPaneItem(original, {
+      splitDirection: "right",
+    });
+    await waitForDataView(copy);
+    await conditionPromise(() => !copy.component.pendingCopyState, "restored browse presentation");
+    expect(copy.component.currentPage.before.offset).toBe(offset);
+    expect(copy.component.currentPage).not.toBe(original.component.currentPage);
+    expect(copy.component.currentPage.loadedTiles).not.toBe(
+      original.component.currentPage.loadedTiles,
+    );
+    await copy.component.previous();
+    expect(BigInt(copy.component.currentPage.before.offset)).toBe(0n);
+    expect(original.component.currentPage.before.offset).toBe(offset);
+  });
+
   it("renders a standalone index in Structure mode", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await conditionPromise(() => item.component?.catalog, "the SQLite catalog");

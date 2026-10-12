@@ -21,6 +21,7 @@ class SQLiteViewComponent {
   constructor(props) {
     this.props = props;
     const saved = props.state || {};
+    this.pendingCopyState = props.copyState;
     this.mode = saved.mode || "data";
     this.queryText = saved.queryText || "";
     this.selectedName = saved.selectedObject || null;
@@ -34,10 +35,10 @@ class SQLiteViewComponent {
     this.columnWidths = saved.columnWidths || {};
     this.sidebarWidth = Math.min(600, Math.max(180, Number(saved.sidebarWidth) || 260));
     this.showSystem = Boolean(saved.showSystem);
-    this.collapsedGroups = new Set();
-    this.queryColumns = [];
-    this.queryRows = [];
-    this.queryCellDetail = null;
+    this.collapsedGroups = new Set(props.copyState?.collapsedGroups);
+    this.queryColumns = props.copyState?.queryColumns || [];
+    this.queryRows = props.copyState?.queryRows || [];
+    this.queryCellDetail = props.copyState?.queryCellDetail || null;
     this.queryError = null;
     this.status = "";
     this.loading = false;
@@ -266,6 +267,7 @@ class SQLiteViewComponent {
         this.status = "No schema objects";
         await this.patch();
       }
+      if (!this.destroyed) await this.restoreCopiedPresentation();
     } catch (error) {
       if (generation !== this.pageGeneration) return;
       this.setError(error);
@@ -1004,6 +1006,68 @@ class SQLiteViewComponent {
       sidebarWidth: this.sidebarWidth,
       showSystem: this.showSystem,
     };
+  }
+
+  capturePaneViewState() {
+    const page = (value) =>
+      value && {
+        ...value,
+        pendingTiles: new Map(),
+        loadedTiles: new Map(value.loadedTiles),
+      };
+    return {
+      collapsedGroups: [...this.collapsedGroups],
+      queryColumns: this.queryColumns,
+      queryRows: this.queryRows,
+      queryCellDetail: this.queryCellDetail,
+      queryError: this.queryError,
+      status: this.status,
+      queryRunning: !!this.queryRunning,
+      queryStale: !!this.queryStale || !!this.queryRunning,
+      description: this.description,
+      currentPage: page(this.currentPage),
+      previousPage: page(this.previousPage),
+      nextPage: page(this.nextPage),
+      totalRows: this.totalRows,
+      visibleColumns: this.visibleColumns,
+      dataGrid: this.refs.dataGrid?.captureState(),
+      queryGrid: this.refs.queryGrid?.captureState(),
+      sidebarScrollTop: this.refs.sidebar?.scrollTop,
+    };
+  }
+
+  async restoreCopiedPresentation() {
+    const state = this.pendingCopyState;
+    if (!state) return;
+    this.pendingCopyState = null;
+    this.props.copyState = null;
+    this.queryStale = state.queryStale;
+    this.queryError = state.queryError;
+    if (state.currentPage && state.description?.name === this.description?.name) {
+      const revision = this.currentPage?.before?.revision;
+      this.retireBrowseOperations();
+      this.pageGeneration++;
+      for (const page of [state.previousPage, state.currentPage, state.nextPage].filter(Boolean)) {
+        for (const cursor of [page.before, page.after, page.request?.cursor].filter(Boolean))
+          cursor.revision = revision;
+      }
+      this.description = state.description;
+      this.currentPage = state.currentPage;
+      this.previousPage = state.previousPage;
+      this.nextPage = state.nextPage;
+      this.totalRows = state.totalRows;
+      this.visibleColumns = state.visibleColumns;
+      this.updatePageStatus();
+      this.dataKey++;
+    }
+    if (this.mode === "query")
+      this.status = state.queryRunning ? `${this.queryRows.length} query rows` : state.status;
+    await this.patch();
+    if (this.destroyed) return;
+    this.refs.dataGrid?.restoreState(state.dataGrid);
+    this.refs.queryGrid?.restoreState(state.queryGrid);
+    if (this.refs.sidebar && state.sidebarScrollTop != null)
+      this.refs.sidebar.scrollTop = state.sidebarScrollTop;
   }
 
   getDefaultFocusTarget() {
