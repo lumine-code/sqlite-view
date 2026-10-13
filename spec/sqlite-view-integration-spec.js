@@ -138,12 +138,27 @@ describe("SQLite View integration", () => {
   it("lists a database opener using only its filename and header", () => {
     const open = spyOn(main, "openDatabaseView").and.callThrough();
     const load = spyOn(main, "loadViewRuntime").and.callThrough();
-    expect(lumine.workspace.getAvailableFileOpeners(files.databasePath)).toEqual([
-      { id: "sqlite-view", label: "SQLite View", isDefault: true },
-      { id: "text-editor", label: "Text Editor", isDefault: false },
+    expect(lumine.workspace.getAvailablePathOpeners(files.databasePath)).toEqual([
+      {
+        id: "sqlite-view",
+        label: "SQLite View",
+        isDefault: true,
+        destinations: ["current", "new-window", "detached-window"],
+      },
+      {
+        id: "text-editor",
+        label: "Text Editor",
+        isDefault: false,
+        destinations: ["current", "new-window", "detached-window"],
+      },
     ]);
-    expect(lumine.workspace.getAvailableFileOpeners(files.invalidPath)).toEqual([
-      { id: "text-editor", label: "Text Editor", isDefault: true },
+    expect(lumine.workspace.getAvailablePathOpeners(files.invalidPath)).toEqual([
+      {
+        id: "text-editor",
+        label: "Text Editor",
+        isDefault: true,
+        destinations: ["current", "new-window", "detached-window"],
+      },
     ]);
     expect(open).not.toHaveBeenCalled();
     expect(load).not.toHaveBeenCalled();
