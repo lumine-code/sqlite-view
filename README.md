@@ -12,6 +12,8 @@ Browse SQLite databases in a fast, keyboard-driven grid.
 - **Bounded reads**: pages through results and keeps fixed row and visible-column caches around the viewport, independent of database size.
 - **Clipboard export**: copies the selected cells as tab-separated text for pasting into a spreadsheet or text editor.
 
+![Browse the samples table and query a SQLite database.](.github/demo.png)
+
 ## Installation
 
 To install `sqlite-view` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/sqlite-view`.
