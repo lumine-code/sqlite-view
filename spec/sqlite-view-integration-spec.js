@@ -135,6 +135,20 @@ describe("SQLite View integration", () => {
     expect(corruptItem.component.error.code).toBeDefined();
   });
 
+  it("lists a database opener using only its filename and header", () => {
+    const open = spyOn(main, "openDatabaseView").and.callThrough();
+    const load = spyOn(main, "loadViewRuntime").and.callThrough();
+    expect(lumine.workspace.getAvailableFileOpeners(files.databasePath)).toEqual([
+      { id: "sqlite-view", label: "SQLite View", isDefault: true },
+      { id: "text-editor", label: "Text Editor", isDefault: false },
+    ]);
+    expect(lumine.workspace.getAvailableFileOpeners(files.invalidPath)).toEqual([
+      { id: "text-editor", label: "Text Editor", isDefault: true },
+    ]);
+    expect(open).not.toHaveBeenCalled();
+    expect(load).not.toHaveBeenCalled();
+  });
+
   it("opens configured additional extensions after normalizing them", async () => {
     expect(main.normalizeExtension(" *.SQLITE-COPY ")).toBe(".sqlite-copy");
     expect(main.normalizeExtension("data")).toBe(".data");
