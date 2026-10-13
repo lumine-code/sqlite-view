@@ -2,9 +2,10 @@
   "title": "sqlite-view",
   "description": "Browse the samples table and query a SQLite database.",
   "recordedOn": "2026-10-13",
-  "sourceRevision": "56e5e770cfdadfe7d881e3417f43ff304a18369f",
+  "sourceRevision": "fb71a9deed317deb5d543806e8c066399151e0d0",
   "mode": "normal",
   "fontSettings": "default",
+  "themeSourceRevision": "6564a9e21899b5541e9c8f8006f9be6d6d72e6ad",
   "images": [
     {
       "file": "demo.png",
