@@ -644,8 +644,9 @@ class SQLiteViewComponent {
     if (this.filterColumnId === "") {
       this.status = "Choose a filter column before applying the filter.";
       await this.patch();
-      cancelAnimationFrame(this.filterFocusFrame);
-      this.filterFocusFrame = requestAnimationFrame(() => {
+      this.filterFocusWindow?.cancelAnimationFrame(this.filterFocusFrame);
+      this.filterFocusWindow = this.element.ownerDocument.defaultView;
+      this.filterFocusFrame = this.filterFocusWindow.requestAnimationFrame(() => {
         this.filterFocusFrame = null;
         if (!this.destroyed && this.mode === "data") {
           this.refs.filterColumn?.focus({ preventScroll: true });
@@ -1581,7 +1582,7 @@ class SQLiteViewComponent {
     this.destroyed = true;
     this.retireBrowseOperations();
     this.pageGeneration += 1;
-    cancelAnimationFrame(this.filterFocusFrame);
+    this.filterFocusWindow?.cancelAnimationFrame(this.filterFocusFrame);
     clearTimeout(this.suspendTimer);
     this.stopLoading();
     this.stopSidebarResize();
