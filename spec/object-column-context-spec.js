@@ -78,7 +78,10 @@ describe("SQLite object column context", () => {
   });
   it("starts the new object without filters from the previous schema", async () => {
     component.refs.filterColumn.setValue(1, { emit: true });
-    await conditionPromise(() => component.filterColumnId === 1);
+    await conditionPromise(
+      () => component.filterColumnId === 1 && !component.refs.applyFilter.disabled,
+      "the selected filter column and enabled Apply button",
+    );
     component.refs.filterValue.value = "b";
     component.refs.filterValue.dispatchEvent(new Event("input", { bubbles: true }));
     component.refs.applyFilter.click();
