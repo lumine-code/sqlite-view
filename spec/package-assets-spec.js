@@ -111,7 +111,7 @@ describe("sqlite-view package assets", () => {
     expect(fs.readdirSync(path.join(root, "menus"))).toEqual(["main.json"]);
     expect(fs.readdirSync(path.join(root, "styles"))).toEqual(["main.css"]);
     expect(fs.existsSync(path.join(root, ".github", "workflows", "ci.yml"))).toBe(true);
-    expect(read("lib/main.js")).toContain("etch.setScheduler(lumine.views)");
+    expect(read("lib/sqlite-view.js")).toContain("etch.setScheduler(lumine.views)");
   });
 
   it("keeps the six public commands flat and in task order", () => {
