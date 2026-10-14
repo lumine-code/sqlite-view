@@ -52,6 +52,15 @@ class SQLiteViewComponent {
     this.subscriptions = new CompositeDisposable();
     this.client = new BrowseClient(props.model.getPath());
     etch.initialize(this);
+    this.subscriptions.add(
+      lumine.views.addWindowParticipant(this.element, {
+        prepareWindowChange: () => this.stopSidebarResize(),
+        didAttachToWindow: () => {
+          this.stopSidebarResize();
+          this.observeSectionHeaderHeight();
+        },
+      }),
+    );
     this.didMount();
   }
 
@@ -75,22 +84,18 @@ class SQLiteViewComponent {
         "core:confirm": schemaCommand(() => this.confirmSchema()),
       }),
     );
+    this.subscriptions.add(new Disposable(() => this.headerResizeObserver?.disconnect()));
     this.observeSectionHeaderHeight();
     this.loadCatalog();
   }
 
   observeSectionHeaderHeight() {
+    this.headerResizeObserver?.disconnect();
     const ResizeObserverClass =
       this.element.ownerDocument.defaultView?.ResizeObserver ?? globalThis.ResizeObserver;
     if (typeof ResizeObserverClass !== "function" || !this.refs.dataControls) return;
     this.headerResizeObserver = new ResizeObserverClass(() => this.syncSectionHeaderHeight());
     this.headerResizeObserver.observe(this.refs.dataControls);
-    this.subscriptions.add(
-      new Disposable(() => {
-        this.headerResizeObserver?.disconnect();
-        this.headerResizeObserver = null;
-      }),
-    );
     this.syncSectionHeaderHeight();
   }
 
@@ -115,7 +120,7 @@ class SQLiteViewComponent {
   moveSchema(delta) {
     const items = this.schemaItems();
     if (!items.length) return;
-    const index = items.indexOf(document.activeElement);
+    const index = items.indexOf(this.element.ownerDocument.activeElement);
     items[
       Math.min(
         items.length - 1,
@@ -125,7 +130,7 @@ class SQLiteViewComponent {
   }
 
   schemaLeft() {
-    const active = document.activeElement;
+    const active = this.element.ownerDocument.activeElement;
     const group = active?.dataset?.group;
     if (group) {
       if (!this.collapsedGroups.has(group)) {
@@ -141,7 +146,7 @@ class SQLiteViewComponent {
   }
 
   schemaRight() {
-    const active = document.activeElement;
+    const active = this.element.ownerDocument.activeElement;
     const group = active?.dataset?.group;
     if (group) {
       if (this.collapsedGroups.delete(group)) {
@@ -155,7 +160,7 @@ class SQLiteViewComponent {
   }
 
   confirmSchema() {
-    const active = document.activeElement;
+    const active = this.element.ownerDocument.activeElement;
     if (active?.dataset?.object) this.selectObject(active.dataset.object);
     else if (active?.dataset?.group) {
       if (this.collapsedGroups.has(active.dataset.group)) this.schemaRight();
@@ -1106,9 +1111,12 @@ class SQLiteViewComponent {
 
   startSidebarResize(event) {
     if (event.button !== 0) return;
+    this.stopSidebarResize();
     this.resizingSidebar = true;
-    window.addEventListener("mousemove", this.resizeSidebar);
-    window.addEventListener("mouseup", this.stopSidebarResize);
+    this.resizeWindow = this.element.ownerDocument.defaultView;
+    this.resizeWindow.addEventListener("mousemove", this.resizeSidebar);
+    this.resizeWindow.addEventListener("mouseup", this.stopSidebarResize);
+    this.resizeWindow.addEventListener("blur", this.stopSidebarResize);
     event.preventDefault();
   }
 
@@ -1121,8 +1129,10 @@ class SQLiteViewComponent {
   stopSidebarResize = () => {
     if (!this.resizingSidebar) return;
     this.resizingSidebar = false;
-    window.removeEventListener("mousemove", this.resizeSidebar);
-    window.removeEventListener("mouseup", this.stopSidebarResize);
+    this.resizeWindow.removeEventListener("mousemove", this.resizeSidebar);
+    this.resizeWindow.removeEventListener("mouseup", this.stopSidebarResize);
+    this.resizeWindow.removeEventListener("blur", this.stopSidebarResize);
+    this.resizeWindow = null;
     this.patch();
   };
 

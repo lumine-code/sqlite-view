@@ -35,6 +35,32 @@ describe("SQLite View integration", () => {
   let SQLiteView;
   let main;
 
+  it("moves schema focus and sidebar dragging into its detached document", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await waitForDataView(item);
+    const extra = await lumine.workspace.detachItem(item);
+    try {
+      const component = item.component;
+      const document = extra.getDocument();
+      const window = extra.getDOMWindow();
+      const items = component.schemaItems();
+      expect(items.length).toBeGreaterThan(1);
+      items[0].focus();
+      component.moveSchema(1);
+      expect(document.activeElement).toBe(items[1]);
+      expect(component.headerResizeObserver instanceof window.ResizeObserver).toBeTrue();
+      const left = component.refs.layout.getBoundingClientRect().left;
+      component.setSidebarWidth(200);
+      component.startSidebarResize(new window.MouseEvent("mousedown", { button: 0 }));
+      window.dispatchEvent(new window.MouseEvent("mousemove", { clientX: left + 240 }));
+      expect(component.sidebarWidth).toBe(240);
+      await lumine.workspace.attachWindow(extra);
+      expect(component.resizingSidebar).toBeFalse();
+    } finally {
+      await lumine.workspace.discardEditorWindows();
+    }
+  });
+
   async function waitForDataView(item, message = "the SQLite view") {
     await conditionPromise(() => {
       const component = item.component;
