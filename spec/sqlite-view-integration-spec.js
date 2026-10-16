@@ -127,6 +127,19 @@ describe("SQLite View integration", () => {
     fs.rmSync(files.directory, { recursive: true, force: true });
   });
 
+  it("limits database commands to the invoking database view", async () => {
+    const view = await lumine.workspace.open(files.databasePath);
+    const focus = spyOn(view, "focusQuery");
+    const editor = await lumine.workspace.open();
+    const command = "sqlite-view:focus-query";
+    expect(lumine.commands.canDispatch(editor.element, command)).toBe(false);
+    expect(lumine.commands.canDispatch(lumine.workspace.getElement(), command)).toBe(false);
+    expect(lumine.commands.canDispatch(view.element, command)).toBe(true);
+    lumine.commands.dispatch(view.element, command);
+    expect(focus).toHaveBeenCalledTimes(1);
+    editor.destroy();
+  });
+
   it("claims only supported files with a SQLite header", async () => {
     expect(main.hasSQLiteHeader(files.databasePath)).toBe(true);
     expect(main.hasSQLiteHeader(files.invalidPath)).toBe(false);

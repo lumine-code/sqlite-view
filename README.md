@@ -20,7 +20,7 @@ To install `sqlite-view` search for it in the Install pane of the Lumine setting
 
 ## Commands
 
-Commands available in `lumine-workspace`:
+Commands available in `.sqlite-view`:
 
 - `sqlite-view:execute-query`: run the statement in the query editor,
 - `sqlite-view:cancel-query`: interrupt the query that is currently running,
