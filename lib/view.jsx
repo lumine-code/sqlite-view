@@ -170,6 +170,11 @@ class SQLiteViewComponent {
 
   async patch() {
     if (this.destroyed) return;
+    const pending = Boolean(this.queryRunning || this.counting);
+    if (pending !== this.commandWorkPending) {
+      this.commandWorkPending = pending;
+      lumine.commands.invalidateAvailability();
+    }
     await etch.update(this);
   }
 
