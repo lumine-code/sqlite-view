@@ -17,9 +17,9 @@ class QueryEditor {
     this.applyGrammar();
     this.editor.setText(props.text || "");
     this.element.appendChild(this.editor.element);
-    this.changeDisposable = this.editor.onDidChange(() =>
-      this.props.onDidChange?.(this.editor.getText()),
-    );
+    this.changeDisposable = this.editor
+      .getBuffer()
+      .onDidChangeText(() => this.props.onDidChange?.(this.editor.getText()));
   }
 
   update(props) {

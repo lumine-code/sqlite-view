@@ -27,7 +27,12 @@ describe("SQLite View native opening", () => {
     const relative = path.relative(fs.realpathSync(os.tmpdir()), fs.realpathSync(directory));
     if (path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`))
       throw Error("Unsafe database fixture path");
-    await fs.promises.rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    await fs.promises.rm(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 50,
+    });
   });
 
   async function holdImport() {
