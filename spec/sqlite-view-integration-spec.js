@@ -242,6 +242,43 @@ describe("SQLite View integration", () => {
     expect(state.viewState.queryEditorHeight).toBeUndefined();
     expect(state.viewState).not.toEqual(jasmine.objectContaining({ history: jasmine.anything() }));
   });
+  it("retains large query roots through capture and pane copies", async () => {
+    const { TextBuffer } = require("lumine");
+    const item = await lumine.workspace.open(files.databasePath);
+    await waitForDataView(item);
+    let source = TextBuffer.createTextSnapshot("x".repeat(32768));
+    while (source.canMaterialize()) source = source.replace(source.length, source.length, source);
+    item.component.queryText = source;
+    const state = item.serialize();
+    expect(state.viewState.queryTextSnapshot).toBe(source);
+    expect(Object.hasOwn(state.viewState, "queryText")).toBe(false);
+    const copy = item.copy();
+    try {
+      expect(copy.serialize().viewState.queryTextSnapshot).toBe(source);
+    } finally {
+      await copy.destroy();
+    }
+  });
+  it("cancels pending statement preparation before starting a query worker", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await waitForDataView(item);
+    const component = item.component;
+    let finish;
+    spyOn(component.refs.queryEditor, "getStatementSource").and.callFake(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const run = spyOn(component.client, "runQuery");
+    const pending = component.executeQuery();
+    expect(component.status).toBe("Preparing query…");
+    component.cancelQuery();
+    finish("SELECT 1;");
+    await pending;
+    expect(run).not.toHaveBeenCalled();
+    expect(component.queryPreparation).toBeNull();
+  });
 
   it("copies the visible query result and independent state while its sibling closes", async () => {
     const original = await lumine.workspace.open(files.databasePath);

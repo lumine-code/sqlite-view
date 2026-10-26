@@ -71,4 +71,31 @@ describe("SQLite query editor", () => {
     grammarAdded({ scopeName: "source.sql" });
     expect(assign).not.toHaveBeenCalled();
   });
+  it("keeps a huge query snapshot editable while executing a small selection", async () => {
+    const { TextBuffer } = require("lumine");
+    let source = TextBuffer.createTextSnapshot("x".repeat(32768));
+    while (source.canMaterialize()) source = source.replace(source.length, source.length, source);
+    source = source.replace(0, 0, "SELECT 42;\n");
+    const changed = jasmine.createSpy("changed");
+    component = new QueryEditor({
+      text: source,
+      statementAt: (text) => text,
+      onDidChange: changed,
+    });
+    const read = spyOn(component.editor, "getText").and.throwError("Whole query read");
+    try {
+      await component.update({ text: source, statementAt: (text) => text, onDidChange: changed });
+      component.editor.setSelectedBufferRange([
+        [0, 0],
+        [0, 10],
+      ]);
+      expect(component.getStatementSource()).toBe("SELECT 42;");
+      component.editor.setCursorBufferPosition([0, 10]);
+      component.editor.insertText(" ");
+      expect(changed.calls.mostRecent().args[0].length).toBe(source.length + 1);
+      expect(typeof changed.calls.mostRecent().args[0].chunks).toBe("function");
+    } finally {
+      read.and.callThrough();
+    }
+  });
 });

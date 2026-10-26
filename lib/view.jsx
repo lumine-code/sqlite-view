@@ -1,6 +1,6 @@
 /** @jsx etch.dom */
 const etch = require("@lumine-code/etch");
-const { CompositeDisposable, Disposable } = require("lumine");
+const { CompositeDisposable, Disposable, TextBuffer } = require("lumine");
 const { BrowseClient } = require("./browse-client");
 const {
   DEFAULT_PAGE_SIZE: PAGE_ROWS,
@@ -23,7 +23,11 @@ class SQLiteViewComponent {
     const saved = props.state || {};
     this.pendingCopyState = props.copyState;
     this.mode = saved.mode || "data";
-    this.queryText = saved.queryText || "";
+    this.queryText = saved.queryTextSnapshot
+      ? TextBuffer.createTextSnapshot(saved.queryTextSnapshot)
+      : saved.queryText || "";
+    if (typeof this.queryText === "string" && this.queryText.length > 65536)
+      this.queryText = TextBuffer.createTextSnapshot(this.queryText);
     this.selectedName = saved.selectedObject || null;
     this.sort = saved.sort || null;
     this.filters = Array.isArray(saved.filters) ? saved.filters.slice(0, 8) : [];
@@ -790,7 +794,46 @@ class SQLiteViewComponent {
       this.mode = "query";
       this.patch();
     }
-    const sql = this.refs.queryEditor.getStatementSource().trim();
+    this.queryPreparation?.controller.abort();
+    const request = { controller: new AbortController() };
+    this.queryPreparation = request;
+    const complete = (sql) => {
+      if (this.destroyed || this.queryPreparation !== request) return;
+      this.queryPreparation = null;
+      try {
+        return this.executePreparedQuery(sql.trim());
+      } catch (error) {
+        this.queryRunning = false;
+        this.queryError = error.message;
+        this.status = "Query failed.";
+        this.patch();
+      }
+    };
+    const fail = (error) => {
+      if (this.destroyed || this.queryPreparation !== request) return;
+      this.queryPreparation = null;
+      if (error.name !== "AbortError") {
+        this.queryError = error.message;
+        this.status = "Query could not be prepared.";
+        this.patch();
+      }
+    };
+    try {
+      const planned = this.refs.queryEditor.getStatementSource({
+        signal: request.controller.signal,
+      });
+      if (planned?.then) {
+        this.status = "Preparing query…";
+        this.patch();
+        return planned.then(complete, fail);
+      }
+      return complete(planned);
+    } catch (error) {
+      return fail(error);
+    }
+  }
+
+  executePreparedQuery(sql) {
     if (!sql) {
       this.status = "Select a query or place the cursor inside one.";
       this.patch();
@@ -847,9 +890,12 @@ class SQLiteViewComponent {
   }
 
   cancelQuery() {
+    const preparationCancelled = Boolean(this.queryPreparation);
+    this.queryPreparation?.controller.abort();
+    this.queryPreparation = null;
     const queryCancelled = this.client.cancelQuery();
     const countCancelled = this.client.cancelCount() || Boolean(this.countRequest);
-    if (!queryCancelled && !countCancelled) return;
+    if (!queryCancelled && !countCancelled && !preparationCancelled) return;
     this.countRequest = null;
     this.queryRunning = false;
     this.counting = false;
@@ -1010,7 +1056,12 @@ class SQLiteViewComponent {
     return {
       selectedObject: this.selectedName,
       mode: this.mode,
-      queryText: this.queryText,
+      ...(this.queryText.length <= 65536
+        ? {
+            queryText:
+              typeof this.queryText === "string" ? this.queryText : this.queryText.toString(),
+          }
+        : { queryTextSnapshot: TextBuffer.createTextSnapshot(this.queryText) }),
       sort: this.sort,
       filters: this.filters,
       columnWidths: this.columnWidths,
@@ -1505,7 +1556,7 @@ class SQLiteViewComponent {
             type="button"
             className="btn icon icon-primitive-square"
             onClick={() => this.cancelQuery()}
-            disabled={!this.queryRunning && !this.counting}
+            disabled={!this.queryRunning && !this.counting && !this.queryPreparation}
           >
             Stop
           </button>
@@ -1595,6 +1646,8 @@ class SQLiteViewComponent {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.queryPreparation?.controller.abort();
+    this.queryPreparation = null;
     this.retireBrowseOperations();
     this.pageGeneration += 1;
     this.filterFocusWindow?.cancelAnimationFrame(this.filterFocusFrame);

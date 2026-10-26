@@ -37,6 +37,8 @@ Selecting a table or view loads its columns and the first page of rows, clearing
 
 The grid keeps one active cell and rectangular selections. Navigation scrolls that cell into view without materializing rows outside the bounded page cache, and copying emits tab-separated rows without formatting values into HTML.
 
+Large query drafts are retained as immutable text snapshots through edits, pane copies and session recovery. Statement lookup scans source chunks cooperatively, preserving SQL quote and comment boundaries, so a small selected statement can run inside a much larger draft. A statement sent to SQLite is limited to 1 Mi UTF-16 units and is checked before starting its worker. Changing the draft or selection cancels pending preparation; Cancel also stops preparation before execution.
+
 ## Customization
 
 Add non-standard filename extensions with **Additional Database Extensions** in the package settings. Values may include or omit the leading dot, and SQLite View still verifies the SQLite header before opening a matching file.
