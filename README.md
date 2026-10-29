@@ -16,6 +16,8 @@ Browse SQLite databases in a fast, keyboard-driven grid.
 
 ## Installation
 
+The Metadata panel shows the loaded database's encoding, application ID, user version and SQLite version without opening another database connection.
+
 To install `sqlite-view` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/sqlite-view`.
 
 ## Commands

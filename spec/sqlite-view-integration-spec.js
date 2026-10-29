@@ -35,6 +35,27 @@ describe("SQLite View integration", () => {
   let SQLiteView;
   let main;
 
+  it("publishes cached database information and refreshes metadata with its catalog", async () => {
+    const item = await lumine.workspace.open(files.databasePath);
+    await waitForDataView(item);
+    const rows = item.getMetadata()[0].rows;
+    expect(rows.find((row) => row.id === "read-only").value).toBe(true);
+    expect(rows.find((row) => row.id === "encoding").value).toBe("UTF-8");
+    expect(rows.find((row) => row.id === "sqlite-version").value).toMatch(/^\d+\.\d+/);
+    const changed = jasmine.createSpy("database metadata changed");
+    const lease = item.onDidChangeMetadata(changed);
+    try {
+      await item.component.loadCatalog();
+      expect(changed).toHaveBeenCalledWith();
+      lease.dispose();
+      changed.calls.reset();
+      await item.component.loadCatalog();
+      expect(changed).not.toHaveBeenCalled();
+    } finally {
+      lease.dispose();
+    }
+  });
+
   it("moves schema focus and sidebar dragging into its detached document", async () => {
     const item = await lumine.workspace.open(files.databasePath);
     await waitForDataView(item);

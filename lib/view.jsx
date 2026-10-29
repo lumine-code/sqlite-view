@@ -262,6 +262,7 @@ class SQLiteViewComponent {
       });
       if (generation !== this.pageGeneration) return;
       this.catalog = catalog;
+      this.props.model.emitter.emit("did-change-metadata");
       const selectable = catalog.objects.find((object) => object.name === this.selectedName);
       const firstDataObject = catalog.objects.find((object) => isDataObject(object));
       const firstObject = selectable || firstDataObject || catalog.objects[0];
