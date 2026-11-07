@@ -35,6 +35,65 @@ describe("SQLite CanvasGrid adapter", () => {
     grid = null;
   });
 
+  it("extends the absolute row sizer and reveals the last row above an overlay rail", async () => {
+    grid = new SQLiteCanvasGrid(
+      props({
+        bounded: true,
+        baseRow: 0,
+        totalRows: 100,
+        columns: [{ key: 0, label: "Wide column", width: 600 }],
+        rows: Array.from({ length: 100 }, (_, index) => [String(index)]),
+      }),
+    );
+    grid.element.style.width = "240px";
+    grid.element.style.height = "180px";
+    document.body.appendChild(grid.element);
+    grid.resize(240, 180);
+    const scrollbar = lumine.scrollbars.attach(grid.scrollElement, {
+      layout: "overlay",
+      policy: "always",
+    });
+    try {
+      await (async () => {
+        for (let attempt = 0; attempt < 120; attempt++) {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+          if (grid.scrollEndInset > 0) return;
+        }
+        throw new Error("The actual horizontal overlay did not publish its end inset");
+      })();
+      const inset = grid.scrollEndInset;
+      expect(inset).toBeGreaterThan(0);
+      expect(grid.bodyViewportHeight()).toBe(grid.scrollElement.clientHeight);
+      expect(parseFloat(grid.sizer.style.height)).toBe(
+        grid.physicalHeight - grid.headerHeight + inset,
+      );
+      grid.scrollRowIntoView(99);
+      expect(
+        Math.abs(
+          grid.scrollElement.scrollTop -
+            (grid.scrollElement.scrollHeight - grid.scrollElement.clientHeight),
+        ),
+      ).toBeLessThan(1);
+      expect(Math.abs(grid.physicalMaxScroll() - grid.scrollElement.scrollTop)).toBeLessThan(1);
+      const row = grid.getCellRect(99, 0);
+      const viewport = grid.getViewportRect();
+      expect(row.bottom).toBeLessThanOrEqual(viewport.bottom - inset + 1);
+
+      grid.setColumnWidth(0, 80);
+      await (async () => {
+        for (let attempt = 0; attempt < 120; attempt++) {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+          if (grid.scrollEndInset === 0) return;
+        }
+        throw new Error("The horizontal rail tail was not removed");
+      })();
+      expect(parseFloat(grid.sizer.style.height)).toBe(grid.physicalHeight - grid.headerHeight);
+    } finally {
+      scrollbar.dispose();
+      grid.element.remove();
+    }
+  });
+
   it("maps bounded result sets to the offset data source", async () => {
     const options = gridOptions(props({ bounded: true, baseRow: 0, totalRows: 2 }));
 
