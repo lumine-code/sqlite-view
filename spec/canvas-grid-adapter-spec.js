@@ -35,6 +35,19 @@ describe("SQLite CanvasGrid adapter", () => {
     grid = null;
   });
 
+  it("reveals its actual scrollport for a clamped navigation target without relying on scroll", () => {
+    const reveal = spyOn(lumine.scrollbars, "reveal");
+    grid = new SQLiteCanvasGrid(props({ bounded: true, baseRow: 0, totalRows: 2 }));
+    grid.moveActiveSelectionTo(0, 0);
+    reveal.calls.reset();
+    grid.moveActiveSelection(-1, 0);
+    expect(reveal).toHaveBeenCalledOnceWith(grid.scrollElement);
+    grid.destroy();
+    reveal.calls.reset();
+    grid.navigate(1, 0);
+    expect(reveal).not.toHaveBeenCalled();
+  });
+
   it("extends the absolute row sizer and reveals the last row above an overlay rail", async () => {
     grid = new SQLiteCanvasGrid(
       props({

@@ -77,6 +77,7 @@ class SQLiteViewComponent {
     );
     const schemaCommand = (callback) => (event) => {
       event.stopPropagation();
+      lumine.scrollbars.reveal(this.refs.sidebar);
       callback();
     };
     this.subscriptions.add(
